@@ -33,4 +33,13 @@ public class Member {
     @Column(name = "member_role")
     @Enumerated(EnumType.STRING)
     private MemberRole memberRole;
+
+    public void update() {
+        Member member = new Member();
+        member.setName(this.name);
+        member.setEmail(this.email);
+        member.setPhone(this.phone);
+        member.setPassword(this.password);
+        member.setMemberRole(this.memberRole);
+    }
 }

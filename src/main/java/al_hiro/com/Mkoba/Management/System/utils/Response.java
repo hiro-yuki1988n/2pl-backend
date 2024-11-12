@@ -1,11 +1,16 @@
 package al_hiro.com.Mkoba.Management.System.utils;
 
-import lombok.Builder;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@ToString
+@Builder
 public class Response<T> implements Serializable {
     @Builder.Default
     private ResponseStatus status = ResponseStatus.Success;
@@ -18,16 +23,16 @@ public class Response<T> implements Serializable {
     @Builder.Default
     private List<String> warnings = new ArrayList<>();
 
-    public  static <T> Response<T> audit(T data, ModuleEnums module, String auditTitle, String auditDesc) {
-        AuditTrailRepository auditTrailRepository = SpringContext.getBean(AuditTrailRepository.class);
-        if(auditTrailRepository!=null)
-            try {
-                auditTrailRepository.save(new AuditTrail(module.toString(), auditTitle, auditDesc));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        return new Response<T>(data);
-    }
+//    public  static <T> Response<T> audit(T data, ModuleEnums module, String auditTitle, String auditDesc) {
+//        AuditTrailRepository auditTrailRepository = SpringContext.getBean(AuditTrailRepository.class);
+//        if(auditTrailRepository!=null)
+//            try {
+//                auditTrailRepository.save(new AuditTrail(module.toString(), auditTitle, auditDesc));
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        return new Response<T>(data);
+//    }
 
     public Response(T data) {
         this.data = data;

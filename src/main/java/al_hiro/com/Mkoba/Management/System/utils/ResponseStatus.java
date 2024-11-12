@@ -1,5 +1,5 @@
 package al_hiro.com.Mkoba.Management.System.utils;
 
-public class ResponseStatus {
+public enum ResponseStatus {
     Success, Warning, Error
 }

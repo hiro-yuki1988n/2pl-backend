@@ -4,7 +4,7 @@ import al_hiro.com.Mkoba.Management.System.enums.MemberRole;
 import lombok.Data;
 
 @Data
-public class memberDto {
+public class MemberDto {
     private Long id;
     private String name;
     private String email;
