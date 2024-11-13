@@ -29,4 +29,6 @@ public class MemberController {
     public ResponsePage<Member> getMkobaMembers(@GraphQLArgument(name = "pageableParam") PageableParam pageableParam) {
         return memberService.getMkobaMembers(pageableParam!=null?pageableParam:new PageableParam());
     }
+
+
 }
