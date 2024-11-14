@@ -21,7 +21,6 @@ public class MemberService {
     private MemberRepository memberRepository;
 
     public Response<Member> saveMkobaMember(MemberDto memberDto) {
-//        log.info("User with email " + LoggedUser.getEmail() + " is saving a Mkoba member");
         if(memberDto == null)
             return new Response<>("Data is required");
         Optional<Member> existingMember = memberRepository.findMemberByEmail(memberDto.getEmail());
@@ -70,5 +69,31 @@ public class MemberService {
 
     public ResponsePage<Member> getMkobaMembers(PageableParam pageableParam) {
         return new ResponsePage<>(memberRepository.getMkobaMembers(pageableParam.getPageable(true), pageableParam.key()));
+    }
+
+    public Response<Member> getMkobaMemberById(Long id) {
+        if(id == null)
+            return new Response<>("Member identity required");
+        Optional<Member> optionalMember = memberRepository.findById(id);
+        if(optionalMember.isEmpty())
+            return new Response<>("Mkoba member not found");
+        return new Response<>(optionalMember.get());
+    }
+
+    public Response<Member> deleteMkobaMember(Long id) {
+        if(id == null)
+            return new Response<>("Member identity required");
+        Optional<Member> optionalMember = memberRepository.findById(id);
+        if(optionalMember.isEmpty())
+            return new Response<>("Mkoba member not found");
+        Member member = optionalMember.get();
+        try {
+            memberRepository.delete(member);
+            return new Response<>(memberRepository.save(optionalMember.get()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            String msg = Utils.getExceptionMessage(e);
+            return Response.error(msg);
+        }
     }
 }

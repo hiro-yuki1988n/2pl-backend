@@ -30,5 +30,13 @@ public class MemberController {
         return memberService.getMkobaMembers(pageableParam!=null?pageableParam:new PageableParam());
     }
 
+    @GraphQLQuery(name = "getMkobaMemberById", description = "Getting a Mkoba member by id")
+    public Response<Member> getMkobaMemberById(@GraphQLArgument(name = "id") Long id) {
+        return memberService.getMkobaMemberById(id);
+    }
 
+    @GraphQLMutation(name = "deleteMkobaMember", description = "Deleting a Mkoba member by id")
+    public Response<Member> deleteMkobaMember(@GraphQLArgument(name = "id") Long id) {
+        return memberService.deleteMkobaMember(id);
+    }
 }
