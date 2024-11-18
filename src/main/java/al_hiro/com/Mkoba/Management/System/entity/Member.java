@@ -6,12 +6,18 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
 @Table(name = "members")
-public class Member {
+public class Member extends BaseEntity implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,12 +40,4 @@ public class Member {
     @Enumerated(EnumType.STRING)
     private MemberRole memberRole;
 
-    public void update() {
-        Member member = new Member();
-        member.setName(this.name);
-        member.setEmail(this.email);
-        member.setPhone(this.phone);
-        member.setPassword(this.password);
-        member.setMemberRole(this.memberRole);
-    }
 }

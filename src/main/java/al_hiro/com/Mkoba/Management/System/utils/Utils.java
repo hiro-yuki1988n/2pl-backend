@@ -1,5 +1,6 @@
 package al_hiro.com.Mkoba.Management.System.utils;
 
+import al_hiro.com.Mkoba.Management.System.entity.BaseEntity;
 import org.springframework.stereotype.Service;
 
 import java.util.regex.Matcher;
@@ -43,5 +44,17 @@ public class Utils {
         }
 
         return snakeCase.toString();
+    }
+
+    public static <T extends BaseEntity> T entity(Class<T> clazz, Long id){
+        T instance;
+        try {
+            instance = clazz.newInstance();
+            instance.setId(id);
+            return instance;
+        } catch (InstantiationException | IllegalAccessException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 }

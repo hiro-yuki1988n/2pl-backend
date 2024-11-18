@@ -27,7 +27,7 @@ public class PageableParam {
     }
 
     private Pageable pageable(Boolean sorted, Boolean nativeQuery) {
-        if(sortBy==null) sortBy = "name";
+        if(sortBy==null) sortBy = "createdAt";
         Sort sort = Sort.by(sortDirection != null ? sortDirection : Sort.Direction.DESC,
                 nativeQuery ? Utils.camelCaseToSnakeCase(sortBy) : sortBy);
         return PageRequest.of(page == null || page < 0 ? 0 : page, size == null || size < 1 ? ResponsePage.DEFAULT_PAGE_SIZE : size, sorted?sort:Sort.unsorted());
