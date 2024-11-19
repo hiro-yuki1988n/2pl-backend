@@ -8,6 +8,7 @@ import al_hiro.com.Mkoba.Management.System.service.MemberShareService;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
 import io.leangen.graphql.annotations.GraphQLArgument;
 import io.leangen.graphql.annotations.GraphQLMutation;
+import io.leangen.graphql.annotations.GraphQLQuery;
 import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,4 +26,11 @@ public class MemberShareController {
     public Response<MemberShare> saveMemberShare(@GraphQLArgument(name = "MemberShareDto") MemberShareDto memberShareDto) {
         return memberShareService.saveMemberShare(memberShareDto);
     }
+
+    @GraphQLQuery(name = "getTotalGroupFunds", description = "Get total group funds (shares + loan profits + penalties)")
+    public Response<Double> getTotalGroupFunds() {
+        Double totalFunds = memberShareService.calculateTotalGroupFunds();
+        return new Response<>(totalFunds);
+    }
 }
+

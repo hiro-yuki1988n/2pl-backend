@@ -9,4 +9,7 @@ import java.util.Optional;
 public interface MemberShareRepository extends JpaRepository<MemberShare,Long> {
     @Query("SELECT m FROM MemberShare m WHERE m.member.id = :memberId AND m.amount = :amount AND m.isActive = true")
     Optional<MemberShare> findByMemberIdAndAmount(Long memberId, Double amount);
+
+    @Query("SELECT SUM(ms.amount) FROM MemberShare ms")
+    Double sumAllShares();
 }
