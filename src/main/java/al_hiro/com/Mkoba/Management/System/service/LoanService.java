@@ -55,11 +55,16 @@ public class LoanService {
         if (saveLoanDto.getDueDate()==null)
             return new Response<>("Loan must have due date");
 
-        loan.setAmount(saveLoanDto.getAmount());
         loan.setMember(existingMember.get());
         loan.setStartDate(saveLoanDto.getStartDate());
         loan.setDueDate(saveLoanDto.getDueDate());
         loan.setInterestRate(saveLoanDto.getInterestRate());
+
+        // Calculate interest amount
+        double interestAmount = loan.getAmount() * loan.getInterestRate();
+        loan.setInterestAmount(interestAmount);
+        loan.setAmount(saveLoanDto.getAmount() + interestAmount);
+
         try {
             loanRepository.save(loan);
             return new Response<>(loan);
@@ -97,7 +102,7 @@ public class LoanService {
             return new Response<>("Loan not found");
         Loan loan = optionalLoan.get();
         try {
-            loanRepository.delete(loan);
+            loan.delete();
             return new Response<>(loanRepository.save(optionalLoan.get()));
         } catch (Exception e) {
             e.printStackTrace();
@@ -117,10 +122,24 @@ public class LoanService {
         Optional<Loan> existingLoanOpt = loanRepository.findById(loanPaymentDto.getLoanId());
         if (existingLoanOpt.isEmpty())
             return new Response<>("Loan does not exist");
-
         Loan existingLoan = existingLoanOpt.get();
-        LoanPayment loanPayment;
 
+        // Check if the payment is after the due date and apply a penalty if needed
+        if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
+            double penalty = existingLoan.calculatePenalty(); // 10% penalty
+            existingLoan.setIsPenaltyApplied(true);
+            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
+            existingLoan.setPenaltyAmount(penalty);
+            try {
+                loanRepository.save(existingLoan);
+            } catch (Exception e) {
+                e.printStackTrace();
+                String msg = Utils.getExceptionMessage(e);
+                return Response.error(msg);
+            }
+        }
+
+        LoanPayment loanPayment;
         if (loanPaymentDto.getId() != null) {
             Optional<LoanPayment> optionalLoanPayment = loanPaymentRepository.findById(loanPaymentDto.getId());
             if (optionalLoanPayment.isEmpty())
@@ -143,13 +162,6 @@ public class LoanService {
         loanPayment.setDescription(loanPaymentDto.getDescription());
         loanPayment.setLoan(existingLoan);
 
-        // Check if the payment is after the due date and apply a penalty if needed
-        if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
-            double penalty = existingLoan.calculatePenalty(); // 10% penalty
-            existingLoan.setIsPenaltyApplied(true);
-            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
-        }
-
         // Update the loan balance and payment status
         double remainingAmount = existingLoan.getAmount() - loanPaymentDto.getAmount();
         if (remainingAmount <= 0) {
@@ -160,7 +172,6 @@ public class LoanService {
         }
         try {
             loanPaymentRepository.save(loanPayment);
-            loanRepository.save(existingLoan);
             return new Response<>(loanPayment);
         } catch (Exception e) {
             e.printStackTrace();
@@ -177,5 +188,15 @@ public class LoanService {
 
     public ResponsePage<LoanPayment> getLoanPaymentsByMember(Long memberId, PageableParam pageableParam) {
         return new ResponsePage<>(loanPaymentRepository.getLoanPaymentsByMember(memberId, pageableParam.getPageable(true), pageableParam.key()));
+    }
+
+    public Double getGroupLoansProfit() {
+        Double totalProfits = loanRepository.getGroupLoansProfit();
+        return  totalProfits!=null ? totalProfits:0.0;
+    }
+
+    public Double getGroupTotalPenalties() {
+        Double totalPenalties = loanRepository.findTotalPenalties();
+        return  totalPenalties!=null ? totalPenalties:0.0;
     }
 }

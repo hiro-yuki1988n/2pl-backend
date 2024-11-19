@@ -88,8 +88,9 @@ public class MemberService {
             return new Response<>("Mkoba member not found");
         Member member = optionalMember.get();
         try {
-            memberRepository.delete(member);
-            return new Response<>(memberRepository.save(optionalMember.get()));
+            member.delete();
+            member = memberRepository.save(member);
+            return new Response<>(member);
         } catch (Exception e) {
             e.printStackTrace();
             String msg = Utils.getExceptionMessage(e);
