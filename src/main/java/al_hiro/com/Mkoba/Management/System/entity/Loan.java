@@ -12,11 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Entity
 @Table(name = "loans")
-public class Loan {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Loan extends BaseEntity{
 
     @ManyToOne
     @JoinColumn(name = "member_id")
@@ -35,16 +31,5 @@ public class Loan {
             return amount * 0.10; // 10% penalty
         }
         return 0.0;
-    }
-
-    public void update() {
-        Loan loan = new Loan();
-        loan.setMember(this.member);
-        loan.setAmount(this.amount);
-        loan.setInterestRate(this.interestRate);
-        loan.setStartDate(this.startDate);
-        loan.setDueDate(this.dueDate);
-        loan.setIsPaid(this.isPaid);
-        loan.setIsPenaltyApplied(this.isPenaltyApplied);
     }
 }

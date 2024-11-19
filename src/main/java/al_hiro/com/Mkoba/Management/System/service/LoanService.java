@@ -126,7 +126,7 @@ public class LoanService {
             if (optionalLoanPayment.isEmpty())
                 return new Response<>("Loan payment not found");
             loanPayment = optionalLoanPayment.get();
-//            loanPayment.update();
+            loanPayment.update();
         } else {
             loanPayment = new LoanPayment();
         }
@@ -143,27 +143,24 @@ public class LoanService {
         loanPayment.setDescription(loanPaymentDto.getDescription());
         loanPayment.setLoan(existingLoan);
 
+        // Check if the payment is after the due date and apply a penalty if needed
+        if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
+            double penalty = existingLoan.calculatePenalty(); // 10% penalty
+            existingLoan.setIsPenaltyApplied(true);
+            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
+        }
+
+        // Update the loan balance and payment status
+        double remainingAmount = existingLoan.getAmount() - loanPaymentDto.getAmount();
+        if (remainingAmount <= 0) {
+            existingLoan.setAmount(0.0);
+            existingLoan.setIsPaid(true);
+        } else {
+            existingLoan.setAmount(remainingAmount);
+        }
         try {
             loanPaymentRepository.save(loanPayment);
-
-            // Check if the payment is after the due date and apply a penalty if needed
-            if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
-                double penalty = existingLoan.calculatePenalty(); // 10% penalty
-                existingLoan.setIsPenaltyApplied(true);
-                existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
-            }
-
-            // Update the loan balance and payment status
-            double remainingAmount = existingLoan.getAmount() - loanPaymentDto.getAmount();
-            if (remainingAmount <= 0) {
-                existingLoan.setAmount(0.0);
-                existingLoan.setIsPaid(true);
-            } else {
-                existingLoan.setAmount(remainingAmount);
-            }
-
             loanRepository.save(existingLoan);
-
             return new Response<>(loanPayment);
         } catch (Exception e) {
             e.printStackTrace();

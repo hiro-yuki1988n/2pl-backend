@@ -12,11 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Entity
 @Table(name = "loan_payments")
-public class LoanPayment {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class LoanPayment extends BaseEntity{
 
     @Column(name = "amount_paid")
     private Double amount;

@@ -14,11 +14,6 @@ import lombok.Setter;
 @Table( name = "member_shares")
 public class MemberShare extends BaseEntity{
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Long id;
-
     @Column(name = "amount")
     private Double amount;
 
