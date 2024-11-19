@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface LoanPaymentRepository extends JpaRepository<LoanPayment, Long> {
 
-    @Query("select lp from LoanPayment lp lower(concat(lp.id, lp.loan.member.name)) like %:key% AND lp.loan.member.id=:memberId")
+    @Query("select lp from LoanPayment lp where lower(concat(lp.id, lp.loan.member.name)) like %:key% AND lp.loan.member.id=:memberId")
     Page<LoanPayment> getLoanPaymentsByMember(Long memberId, Pageable pageable, String key);
+
 }

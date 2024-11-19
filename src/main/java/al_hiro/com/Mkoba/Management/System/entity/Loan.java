@@ -20,10 +20,12 @@ public class Loan extends BaseEntity{
 
     private Double amount;
     private Double interestRate;
+    private Double interestAmount;
     private LocalDate startDate;
     private LocalDate dueDate;
-    private Boolean isPaid;
+    private Boolean isPaid=false;
     private Boolean isPenaltyApplied = false;
+    private Double penaltyAmount;
 
     public Double calculatePenalty() {
         if (!isPaid && LocalDate.now().isAfter(dueDate) && !isPenaltyApplied) {

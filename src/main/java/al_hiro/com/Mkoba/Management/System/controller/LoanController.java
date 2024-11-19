@@ -57,4 +57,15 @@ public class LoanController {
         return loanService.getLoanPaymentsByMember(memberId, pageableParam!=null?pageableParam:new PageableParam());
     }
 
+    @GraphQLQuery(name = "getGroupLoansProfit", description = "Getting Group's profit from Loans")
+    public Response<Double> getGroupLoansProfit() {
+        Double totalProfits = loanService.getGroupLoansProfit();
+        return new Response<>(totalProfits);
+    }
+
+    @GraphQLQuery(name = "getGroupTotalPenalties", description = "Getting Group's profit from penalties")
+    public Response<Double> getGroupTotalPenalties() {
+        Double totalPenalties = loanService.getGroupTotalPenalties();
+        return new Response<>(totalPenalties);
+    }
 }

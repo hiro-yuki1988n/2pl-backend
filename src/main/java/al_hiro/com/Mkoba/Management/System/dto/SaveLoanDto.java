@@ -17,6 +17,6 @@ public class SaveLoanDto {
     private Double interestRate;
     private LocalDate startDate;
     private LocalDate dueDate;
-    private Boolean isPaid;
+    private Boolean isPaid = false;
     private Boolean isPenaltyApplied = false;
 }

@@ -13,6 +13,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.email=:email")
     Optional<Member> findMemberByEmail(String email);
 
-    @Query("SELECT m FROM Member m WHERE lower(concat(m.id, m.name)) like %:key%")
+    @Query("SELECT m FROM Member m WHERE lower(concat(m.id, m.name)) like %:key% AND m.isActive=true")
     Page<Member> getMkobaMembers(Pageable pageable, String key);
 }
