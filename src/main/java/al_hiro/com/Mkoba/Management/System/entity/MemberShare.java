@@ -14,7 +14,6 @@ import lombok.Setter;
 @Table( name = "member_shares")
 public class MemberShare extends BaseEntity{
 
-
     @Column(name = "amount")
     private Double amount;
 
