@@ -2,6 +2,7 @@ package al_hiro.com.Mkoba.Management.System.utils;
 
 import lombok.*;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,10 @@ import java.util.List;
 @ToString
 @Builder
 public class Response<T> implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     @Builder.Default
     private ResponseStatus status = ResponseStatus.Success;
 
