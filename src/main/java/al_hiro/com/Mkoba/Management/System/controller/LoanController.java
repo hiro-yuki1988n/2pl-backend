@@ -1,9 +1,9 @@
 package al_hiro.com.Mkoba.Management.System.controller;
 
-import al_hiro.com.Mkoba.Management.System.dto.MemberDto;
+import al_hiro.com.Mkoba.Management.System.dto.LoanPaymentDto;
 import al_hiro.com.Mkoba.Management.System.dto.SaveLoanDto;
 import al_hiro.com.Mkoba.Management.System.entity.Loan;
-import al_hiro.com.Mkoba.Management.System.entity.Member;
+import al_hiro.com.Mkoba.Management.System.entity.LoanPayment;
 import al_hiro.com.Mkoba.Management.System.service.LoanService;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
@@ -40,6 +40,21 @@ public class LoanController {
     @GraphQLMutation(name = "deleteMemberLoan", description = "Deleting a member loan by id")
     public Response<Loan> deleteMemberLoan(@GraphQLArgument(name = "id") Long id) {
         return loanService.deleteMemberLoan(id);
+    }
+
+    @GraphQLQuery(name = "getLoanByMember", description = "Getting a page of loans by a specific member")
+    public ResponsePage<Loan> getLoanByMember(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "pageableParam") PageableParam pageableParam) {
+        return loanService.getLoanByMember(memberId, pageableParam!=null?pageableParam:new PageableParam());
+    }
+
+    @GraphQLMutation(name = "saveLoanPayment", description="Saving Loan Payments for a Member")
+    public Response<LoanPayment> saveLoanPayment(@GraphQLArgument(name = "loanPaymentDto")LoanPaymentDto loanPaymentDto) {
+        return loanService.saveLoanPayment(loanPaymentDto);
+    }
+
+    @GraphQLQuery(name = "getLoanPaymentsByMember", description = "Getting Loan Payments for a specific Member")
+    public ResponsePage<LoanPayment> getLoanPaymentsByMember(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "pageableParam") PageableParam pageableParam) {
+        return loanService.getLoanPaymentsByMember(memberId, pageableParam!=null?pageableParam:new PageableParam());
     }
 
 }
