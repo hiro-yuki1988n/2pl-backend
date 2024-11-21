@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 @Data
 @AllArgsConstructor
@@ -40,4 +41,6 @@ public class Member extends BaseEntity implements Serializable {
     @Enumerated(EnumType.STRING)
     private MemberRole memberRole;
 
+    @Column(name = "member_shares")
+    private Double memberShares;
 }

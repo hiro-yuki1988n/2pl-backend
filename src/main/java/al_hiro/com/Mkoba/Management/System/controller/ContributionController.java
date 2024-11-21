@@ -52,4 +52,15 @@ public class ContributionController {
         return contributionService.deleteContribution(id);
     }
 
+    @GraphQLQuery(name = "getTotalContributions", description = "Getting Group's total member contributions")
+    public Response<Double> getTotalContributions() {
+        Double totalContributions = contributionService.getTotalContributions();
+        return new Response<>(totalContributions);
+    }
+
+    @GraphQLQuery(name = "getTotalMemberContributions", description = "Getting total member contributions")
+    public Response<Double> getTotalMemberContributions(@GraphQLArgument(name = "memberId") Long memberId) {
+        Double totalMemberContributions = contributionService.getTotalMemberContributions(memberId);
+        return new Response<>(totalMemberContributions);
+    }
 }

@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -36,9 +37,12 @@ public class LoanService {
     public Response<Loan> saveLoan(SaveLoanDto saveLoanDto) {
         if (saveLoanDto == null)
             return new Response<>("Data is required");
+
+        // Validate member
         Optional<Member> existingMember = memberRepository.findById(saveLoanDto.getMemberId());
         if (existingMember.isEmpty())
             return new Response<>("Member does not exist");
+
         Loan loan;
         if (saveLoanDto.getId() != null) {
             Optional<Loan> optionalLoan = loanRepository.findById(saveLoanDto.getId());
@@ -46,27 +50,53 @@ public class LoanService {
                 return new Response<>("Loan not found");
             loan = optionalLoan.get();
             loan.update();
-        } else loan = new Loan();
+        } else {
+            loan = new Loan();
+        }
 
+        // Validate input data
         if (saveLoanDto.getAmount() <= 0)
             return new Response<>("Loan amount must be greater than zero");
-        if (saveLoanDto.getStartDate()==null)
+        if (saveLoanDto.getStartDate() == null)
             return new Response<>("Loan must have start date");
-        if (saveLoanDto.getDueDate()==null)
+        if (saveLoanDto.getDueDate() == null)
             return new Response<>("Loan must have due date");
+        if (saveLoanDto.getStartDate().isAfter(saveLoanDto.getDueDate()))
+            return new Response<>("Start date must be before due date");
 
+        // Check for duplicate loan
+
+        // Set loan details
         loan.setMember(existingMember.get());
         loan.setStartDate(saveLoanDto.getStartDate());
         loan.setDueDate(saveLoanDto.getDueDate());
         loan.setInterestRate(saveLoanDto.getInterestRate());
 
-        // Calculate interest amount
-        double interestAmount = loan.getAmount() * loan.getInterestRate();
+        // Calculate interest amount for the loan
+        double interestAmount = saveLoanDto.getAmount() * saveLoanDto.getInterestRate();
         loan.setInterestAmount(interestAmount);
         loan.setAmount(saveLoanDto.getAmount() + interestAmount);
 
+        // Calculate share-based interest distribution
+        List<Member> members = memberRepository.findAll(); // Fetch all group members
+        double totalShares = members.stream().mapToDouble(Member::getMemberShares).sum(); // Total shares
+
+        if (totalShares == 0) {
+            return new Response<>("Total shares cannot be zero");
+        }
+
+        for (Member member : members) {
+            double memberSharePercentage = member.getMemberShares() / totalShares; // Member's share percentage
+            double memberInterest = interestAmount * memberSharePercentage; // Interest for this member
+
+            // Update the member's shares
+            double updatedShares = member.getMemberShares() + memberInterest;
+            member.setMemberShares(updatedShares);
+            memberRepository.save(member); // Save the updated member
+        }
+
         try {
-            loanRepository.save(loan);
+            loanRepository.save(loan); // Save loan after interest calculation
             return new Response<>(loan);
         } catch (Exception e) {
             e.printStackTrace();
@@ -80,6 +110,7 @@ public class LoanService {
             return new Response<>("Could not save loan");
         }
     }
+
 
     public ResponsePage<Loan> getMembersLoans(PageableParam pageableParam) {
         return new ResponsePage<>(loanRepository.getMembersLoans(pageableParam.getPageable(true), pageableParam.key()));

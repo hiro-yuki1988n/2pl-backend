@@ -174,4 +174,23 @@ public class ContributionService {
             return Response.error("Could not delete monthly Contribution for a member");
         }
     }
+
+    public Double getTotalContributions() {
+        log.info("Getting total contributions");
+        Double totalContributions = contributionRepository.getTotalContributions();
+        return  totalContributions!=null ? totalContributions:0.0;
+    }
+
+    public Double getTotalMemberContributions(Long memberId) {
+        log.info("Getting total contributions for a member");
+        if (memberId == null) {
+            return null; // or throw an exception or return a default value
+        }
+        Optional<Member> optionalMember = memberRepository.findById(memberId);
+        if (optionalMember.isEmpty()) {
+            return null; // or throw an exception or return a default value
+        }
+        Double totalContributions = contributionRepository.getTotalContributionsByMember(memberId);
+        return totalContributions != null ? totalContributions : 0.0;
+    }
 }

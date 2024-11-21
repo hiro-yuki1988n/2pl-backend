@@ -22,4 +22,10 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
 
     @Query("SELECT c FROM Contribution c WHERE (:isActive is null OR c.isActive =:isActive) AND c.month = :month")
     Page<Contribution> getAllByMonth(Pageable pageable, Boolean isActive, String month);
+
+    @Query("SELECT SUM(c.amount) FROM Contribution c WHERE c.isActive=true")
+    Double getTotalContributions();
+
+    @Query("SELECT SUM(c.amount) FROM Contribution c WHERE c.member.id = :memberId AND c.isActive=true")
+    Double getTotalContributionsByMember(Long memberId);
 }

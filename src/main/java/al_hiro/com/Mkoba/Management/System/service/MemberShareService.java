@@ -11,6 +11,7 @@ import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -28,7 +29,7 @@ public class MemberShareService {
     private LoanService loanService;
     
     @Autowired
-    private ContributionRepository contributionRepository;
+    private ContributionService contributionService;
 
     public Response<MemberShare> saveMemberShare(MemberShareDto memberShareDto) {
 
@@ -58,11 +59,21 @@ public class MemberShareService {
         if (memberShareDto.getDescription() == null)
             return Response.warning(null, "Member's Description is required");
 
-        memberShare.setAmount(memberShareDto.getAmount());
-        memberShare.setId(memberShareDto.getId());
+        // Jumla ya faida za mikopo
+        Double totalLoanProfits = loanService.getGroupLoansProfit();
+
+        // Jumla ya penalties
+        Double totalPenalties = loanService.getGroupTotalPenalties();
+
+        // Jumla ya michango ya kila mwezi ya mwanachama
+        Double totalMonthlyContributions = contributionService.getTotalMemberContributions(memberShareDto.getMemberId());
+        
+        Double totalMemberShares = (totalLoanProfits != null ? totalLoanProfits : 0.0) +
+                (totalPenalties != null ? totalPenalties : 0.0) + (totalMonthlyContributions != null ? totalMonthlyContributions : 0.0);
+
+        memberShare.setAmount(totalMemberShares);
         memberShare.setDescription(memberShareDto.getDescription());
         memberShare.setMember(Utils.entity(Member.class, memberShareDto.getMemberId()));
-
 
         // Save Member's Share to a database
         try {
@@ -82,7 +93,9 @@ public class MemberShareService {
     }
 
     public Double calculateTotalGroupFunds() {
-        Double totalMemberShares = memberShareRepository.sumAllShares();
+        
+        // Jumla ya michango yote ya wanachama
+        Double totalMonthlyContributions = contributionService.getTotalContributions();
 
         // Jumla ya faida za mikopo
         Double totalLoanProfits = loanService.getGroupLoansProfit();
@@ -91,7 +104,7 @@ public class MemberShareService {
         Double totalPenalties = loanService.getGroupTotalPenalties();
 
         // Jumla ya hela ya kikundi
-        return (totalMemberShares != null ? totalMemberShares : 0.0) +
+        return (totalMonthlyContributions != null ? totalMonthlyContributions : 0.0) +
                 (totalLoanProfits != null ? totalLoanProfits : 0.0) +
                 (totalPenalties != null ? totalPenalties : 0.0);
     }
