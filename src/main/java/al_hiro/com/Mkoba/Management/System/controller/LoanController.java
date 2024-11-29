@@ -68,4 +68,5 @@ public class LoanController {
         Double totalPenalties = loanService.getGroupTotalPenalties();
         return new Response<>(totalPenalties);
     }
+
 }

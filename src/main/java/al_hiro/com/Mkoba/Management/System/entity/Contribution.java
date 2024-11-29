@@ -39,6 +39,6 @@ public class Contribution extends BaseEntity implements Serializable {
     @Column(name = "penalty_applied"  , columnDefinition = "BOOLEAN DEFAULT FALSE"  )
     private Boolean penaltyApplied;
 
-    @Column(name = "penalty_amount"  , precision = 11, scale = 2)
+    @Column(name = "penalty_amount", precision = 10, scale = 2)
     private BigDecimal penaltyAmount;
 }

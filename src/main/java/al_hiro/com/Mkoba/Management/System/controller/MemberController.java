@@ -39,4 +39,10 @@ public class MemberController {
     public Response<Member> deleteMkobaMember(@GraphQLArgument(name = "id") Long id) {
         return memberService.deleteMkobaMember(id);
     }
+
+    @GraphQLQuery(name = "getGroupSavings", description = "Getting Group savings")
+    public Response<Double> getGroupSavings() {
+        Double groupSavings = memberService.getGroupSavings();
+        return new Response<>(groupSavings);
+    }
 }

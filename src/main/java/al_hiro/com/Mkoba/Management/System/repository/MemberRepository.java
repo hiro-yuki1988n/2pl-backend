@@ -15,4 +15,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query("SELECT m FROM Member m WHERE lower(concat(m.id, m.name)) like %:key% AND m.isActive=true")
     Page<Member> getMkobaMembers(Pageable pageable, String key);
+
+    @Query("SELECT SUM(m.memberShares) FROM Member m WHERE m.isActive=true")
+    Double getGroupSavings();
 }

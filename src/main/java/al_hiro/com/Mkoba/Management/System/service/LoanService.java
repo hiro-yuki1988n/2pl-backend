@@ -17,8 +17,12 @@ import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.Console;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -33,6 +37,9 @@ public class LoanService {
 
     @Autowired
     private LoanPaymentRepository loanPaymentRepository;
+
+    @Autowired
+    private MemberService memberService;
 
     public Response<Loan> saveLoan(SaveLoanDto saveLoanDto) {
         if (saveLoanDto == null)
@@ -77,23 +84,36 @@ public class LoanService {
         loan.setInterestAmount(interestAmount);
         loan.setAmount(saveLoanDto.getAmount() + interestAmount);
 
-        // Calculate share-based interest distribution
         List<Member> members = memberRepository.findAll(); // Fetch all group members
-        double totalShares = members.stream().mapToDouble(Member::getMemberShares).sum(); // Total shares
 
-        if (totalShares == 0) {
+// Calculate total group savings using BigDecimal
+        BigDecimal groupSavings = members.stream()
+                .map(Member::getMemberShares)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
             return new Response<>("Total shares cannot be zero");
         }
 
         for (Member member : members) {
-            double memberSharePercentage = member.getMemberShares() / totalShares; // Member's share percentage
-            double memberInterest = interestAmount * memberSharePercentage; // Interest for this member
+            BigDecimal memberShares = member.getMemberShares();
+            if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
+                return new Response<>("Member shares must be non-null and non-negative");
+            }
 
-            // Update the member's shares
-            double updatedShares = member.getMemberShares() + memberInterest;
+            // Calculate member's share percentage
+            BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
+
+            // Calculate member's interest
+            BigDecimal memberInterest = BigDecimal.valueOf(interestAmount).multiply(memberSharePercentage);
+
+            // Update member's shares
+            BigDecimal updatedShares = memberShares.add(memberInterest);
             member.setMemberShares(updatedShares);
-            memberRepository.save(member); // Save the updated member
+            memberRepository.save(member); // Save updated member shares
         }
+
 
         try {
             loanRepository.save(loan); // Save loan after interest calculation
@@ -161,6 +181,30 @@ public class LoanService {
             existingLoan.setIsPenaltyApplied(true);
             existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
             existingLoan.setPenaltyAmount(penalty);
+
+            List<Member> members = memberRepository.findAll(); // Fetch all group members
+            BigDecimal groupSavings = members.stream()
+                    .map(Member::getMemberShares)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
+                return new Response<>("Total shares cannot be zero");
+            }
+
+            for (Member member : members) {
+                BigDecimal memberShares = member.getMemberShares();
+                if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
+                    return new Response<>("Member shares must be non-null and non-negative");
+                }
+                BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP); // Member's share percentage
+                BigDecimal penaltyDistribution = BigDecimal.valueOf(penalty).multiply(memberSharePercentage); // Interest for this member
+
+                // Update the member's shares
+                BigDecimal updatedShares = memberShares.add(penaltyDistribution);
+                member.setMemberShares(updatedShares);
+                memberRepository.save(member); // Save the updated member
+            }
             try {
                 loanRepository.save(existingLoan);
             } catch (Exception e) {
@@ -223,11 +267,11 @@ public class LoanService {
 
     public Double getGroupLoansProfit() {
         Double totalProfits = loanRepository.getGroupLoansProfit();
-        return  totalProfits!=null ? totalProfits:0.0;
+        return totalProfits != null ? totalProfits : 0.0;
     }
 
     public Double getGroupTotalPenalties() {
         Double totalPenalties = loanRepository.findTotalPenalties();
-        return  totalPenalties!=null ? totalPenalties:0.0;
+        return totalPenalties != null ? totalPenalties : 0.0;
     }
 }

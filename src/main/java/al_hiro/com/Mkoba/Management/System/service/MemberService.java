@@ -97,4 +97,9 @@ public class MemberService {
             return Response.error(msg);
         }
     }
+
+    public Double getGroupSavings() {
+        Double groupSavings = memberRepository.getGroupSavings();
+        return  groupSavings!=null ? groupSavings:0.0;
+    }
 }

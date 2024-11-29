@@ -41,6 +41,6 @@ public class Member extends BaseEntity implements Serializable {
     @Enumerated(EnumType.STRING)
     private MemberRole memberRole;
 
-    @Column(name = "member_shares")
-    private Double memberShares;
+    @Column(name = "member_shares", precision = 10, scale = 2)
+    private BigDecimal memberShares;
 }
