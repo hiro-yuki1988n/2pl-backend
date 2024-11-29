@@ -32,10 +32,10 @@ public class LoanController {
         return loanService.getMembersLoans(pageableParam!=null?pageableParam:new PageableParam());
     }
 
-    @GraphQLQuery(name = "getMemberLoan", description = "Getting member loan by id")
-    public Response<Loan> getMemberLoan(@GraphQLArgument(name = "id") Long id) {
-        return loanService.getMemberLoan(id);
-    }
+//    @GraphQLQuery(name = "getMemberLoan", description = "Getting member loan by id")
+//    public Response<Loan> getMemberLoan(@GraphQLArgument(name = "id") Long id) {
+//        return loanService.getMemberLoan(id);
+//    }
 
     @GraphQLMutation(name = "deleteMemberLoan", description = "Deleting a member loan by id")
     public Response<Loan> deleteMemberLoan(@GraphQLArgument(name = "id") Long id) {

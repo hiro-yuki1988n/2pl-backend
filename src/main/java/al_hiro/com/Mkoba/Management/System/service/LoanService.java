@@ -71,18 +71,17 @@ public class LoanService {
         if (saveLoanDto.getStartDate().isAfter(saveLoanDto.getDueDate()))
             return new Response<>("Start date must be before due date");
 
-        // Check for duplicate loan
+        // Calculate interest amount for the loan
+        double interestAmount = saveLoanDto.getAmount() * saveLoanDto.getInterestRate();
 
         // Set loan details
         loan.setMember(existingMember.get());
         loan.setStartDate(saveLoanDto.getStartDate());
         loan.setDueDate(saveLoanDto.getDueDate());
         loan.setInterestRate(saveLoanDto.getInterestRate());
-
-        // Calculate interest amount for the loan
-        double interestAmount = saveLoanDto.getAmount() * saveLoanDto.getInterestRate();
+        loan.setAmount(saveLoanDto.getAmount());
+        loan.setPayableAmount(saveLoanDto.getAmount()+interestAmount);
         loan.setInterestAmount(interestAmount);
-        loan.setAmount(saveLoanDto.getAmount() + interestAmount);
 
         List<Member> members = memberRepository.findAll(); // Fetch all group members
 
@@ -136,14 +135,14 @@ public class LoanService {
         return new ResponsePage<>(loanRepository.getMembersLoans(pageableParam.getPageable(true), pageableParam.key()));
     }
 
-    public Response<Loan> getMemberLoan(Long id) {
-        if (id == null)
-            return new Response<>("Loan identity required");
-        Optional<Loan> optionalLoan = loanRepository.findById(id);
-        if (optionalLoan.isEmpty())
-            return new Response<>("Loan not found");
-        return new Response<>(optionalLoan.get());
-    }
+//    public Response<Loan> getMemberLoan(Long id) {
+//        if (id == null)
+//            return new Response<>("Loan identity required");
+//        Optional<Loan> optionalLoan = loanRepository.findById(id);
+//        if (optionalLoan.isEmpty())
+//            return new Response<>("Loan not found");
+//        return new Response<>(optionalLoan.get());
+//    }
 
     public Response<Loan> deleteMemberLoan(Long id) {
         if (id == null)
@@ -179,8 +178,11 @@ public class LoanService {
         if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
             double penalty = existingLoan.calculatePenalty(); // 10% penalty
             existingLoan.setIsPenaltyApplied(true);
-            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
+//            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
             existingLoan.setPenaltyAmount(penalty);
+
+//            Double amountToBePaid = existingLoan.getInterestAmount() + penalty;
+            existingLoan.setPayableAmount(existingLoan.getPayableAmount()+penalty); // Update the amount to be paid
 
             List<Member> members = memberRepository.findAll(); // Fetch all group members
             BigDecimal groupSavings = members.stream()
@@ -232,18 +234,19 @@ public class LoanService {
         if (loanPaymentDto.getLoanId() == null)
             return new Response<>("Respective Loan identity required");
 
+
         loanPayment.setPayDate(loanPaymentDto.getPayDate());
         loanPayment.setAmount(loanPaymentDto.getAmount());
         loanPayment.setDescription(loanPaymentDto.getDescription());
         loanPayment.setLoan(existingLoan);
 
         // Update the loan balance and payment status
-        double remainingAmount = existingLoan.getAmount() - loanPaymentDto.getAmount();
+        double remainingAmount = existingLoan.getPayableAmount() - loanPaymentDto.getAmount();
         if (remainingAmount <= 0) {
-            existingLoan.setAmount(0.0);
+//            existingLoan.setAmount(0.0);
             existingLoan.setIsPaid(true);
         } else {
-            existingLoan.setAmount(remainingAmount);
+            existingLoan.setPayableAmount(remainingAmount);
         }
         try {
             loanPaymentRepository.save(loanPayment);
