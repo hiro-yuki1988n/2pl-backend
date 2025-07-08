@@ -1,5 +1,6 @@
 package al_hiro.com.Mkoba.Management.System.entity;
 
+import al_hiro.com.Mkoba.Management.System.enums.ContributionCategory;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -46,4 +47,8 @@ public class Contribution extends BaseEntity implements Serializable {
 
     @Column(name = "year")
     private Integer year;
+
+    @Column(name = "contribution_category")
+    @Enumerated(EnumType.STRING)
+    private ContributionCategory contributionCategory;
 }

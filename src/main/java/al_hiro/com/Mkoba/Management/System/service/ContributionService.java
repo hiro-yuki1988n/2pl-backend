@@ -95,6 +95,7 @@ public class ContributionService {
             contribution.setYear(Year.now().getValue());
             contribution.setMember(Utils.entity(Member.class, contributionDto.getMemberId()));
             contribution.setPaymentDate(LocalDateTime.now());
+            contribution.setContributionCategory(contributionDto.getContributionCategory());
         }
 
         Optional<Member> optMember = memberRepository.findById(contributionDto.getMemberId());

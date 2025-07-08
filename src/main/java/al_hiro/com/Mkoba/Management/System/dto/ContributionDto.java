@@ -1,5 +1,6 @@
 package al_hiro.com.Mkoba.Management.System.dto;
 
+import al_hiro.com.Mkoba.Management.System.enums.ContributionCategory;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,7 +16,7 @@ public class ContributionDto {
     private Long id;
     private BigDecimal amount;
     private Month month;
-//    private LocalDateTime paymentDate;
     private Long memberId;
+    private ContributionCategory contributionCategory;
 }
 
