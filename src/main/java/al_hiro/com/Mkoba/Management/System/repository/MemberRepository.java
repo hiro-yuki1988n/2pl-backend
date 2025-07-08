@@ -21,4 +21,6 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
 
     @Query(value = "SELECT SUM(m.member_shares) FROM members m WHERE m.is_active = true AND EXTRACT(YEAR FROM m.created_at) = :year AND m.id = :memberId", nativeQuery = true)
     Double getTotalMemberSharesByYear(Long memberId,Integer year);
+
+    Optional<Member> findById(Long memberId);
 }
