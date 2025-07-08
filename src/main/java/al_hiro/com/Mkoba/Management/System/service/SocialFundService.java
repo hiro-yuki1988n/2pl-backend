@@ -1,70 +1,78 @@
 package al_hiro.com.Mkoba.Management.System.service;
 
 import al_hiro.com.Mkoba.Management.System.dto.SocialFundDto;
+import al_hiro.com.Mkoba.Management.System.entity.Contribution;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
 import al_hiro.com.Mkoba.Management.System.entity.SocialFund;
+import al_hiro.com.Mkoba.Management.System.repository.ExpendituresRepository;
 import al_hiro.com.Mkoba.Management.System.repository.SocialFundRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
 import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
 import al_hiro.com.Mkoba.Management.System.utils.Utils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
 @Log
+@RequiredArgsConstructor
 public class SocialFundService {
 
-    @Autowired
-    private SocialFundRepository socialFundRepository;
+    private final SocialFundRepository socialFundRepository;
+    private final ExpendituresRepository expendituresRepository;
 
     public Response<SocialFund> saveSocialFund(SocialFundDto socialFundDto) {
         log.info("Saving social fund");
         if (socialFundDto == null)
-            return Response.warning(null,"Social fund is required");
+            return Response.warning(null, "Social fund is required");
 
         SocialFund socialFund;
         if (socialFundDto.getId() != null) {
             Optional<SocialFund> optionalSocialFund = socialFundRepository.findById(socialFundDto.getId());
-            if (optionalSocialFund.isEmpty())
-                return Response.warning(null,"Social fund not found");
-            socialFund = optionalSocialFund.get();
-            socialFund.update();
-        } else{
-//            if(socialFundRepository.findByMemberAndMonth(socialFundDto.getMemberId(), socialFundDto.getMonth()).isPresent())
-//                return Response.warning(null,"Social fund for this member and month already exists");
+            if (optionalSocialFund.isPresent()) {
+                socialFund = optionalSocialFund.get();
+                if (socialFund.getMember().getId().equals(socialFundDto.getMemberId()) && socialFund.getMonth().equals(socialFundDto.getMonth())) {
+                    return Response.warning(null, "Social fund for this member and month already exists");
+                }
+                socialFund.update();
+            } else {
+                socialFund = new SocialFund();
+            }
+        } else {
             socialFund = new SocialFund();
         }
 
         if (socialFundDto.getAmount() == null)
-            return Response.warning(null,"Amount paid is required");
+            return Response.warning(null, "Amount paid is required");
         if (socialFundDto.getMonth() == null)
-            return Response.warning(null,"Month paid for is required");
+            return Response.warning(null, "Month paid for is required");
         if (socialFundDto.getMemberId() == null)
-            return Response.warning(null,"Member who paid is required");
+            return Response.warning(null, "Member who paid is required");
 
         socialFund.setAmount(socialFundDto.getAmount());
-        socialFund.setMonth(socialFundDto.getMonth());
+        socialFund.setMonth(Month.valueOf(socialFundDto.getMonth()));
         socialFund.setMember(Utils.entity(Member.class, socialFundDto.getMemberId()));
         socialFund.setPaymentDate(LocalDateTime.now());
 
-        // Save contribution to database
-        try{
+        try {
             socialFundRepository.save(socialFund);
             return new Response<>(socialFund);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             String message = Utils.getExceptionMessage(e);
-            if(message.contains("month"))
+            if (message.contains("month"))
                 return new Response<>("Invalid Month");
-            if(message.contains("(memberId)"))
+            if (message.contains("(memberId)"))
                 return new Response<>("Invalid Member");
-            if(message.contains("amount"))
+            if (message.contains("amount"))
                 return new Response<>("Invalid Amount");
             return new Response<>("Could not save monthly social fund for a member");
         }
@@ -78,18 +86,46 @@ public class SocialFundService {
     public Double getTotalSocialFunds() {
         log.info("Getting Group's total social fund");
         Double totalSocialFunds = socialFundRepository.getTotalSocialFunds();
-        return  totalSocialFunds!=null ? totalSocialFunds:0.0;
+//        Double socialExpense = expendituresRepository.getSocialExpenses();
+        return totalSocialFunds != null ? totalSocialFunds : 0.0;
     }
 
     public Double getTotalSocialFundsByMonth(String month) {
         log.info("Getting total social fund for a month");
         Double totalSocialFundsByMonth = socialFundRepository.getTotalSocialFundsByMonth(Month.valueOf(month.toUpperCase()));
-        return  totalSocialFundsByMonth!=null? totalSocialFundsByMonth:0.0;
+        return totalSocialFundsByMonth != null ? totalSocialFundsByMonth : 0.0;
     }
 
-    public Double getTotalSocialFundsByMember(Long memberId) {
+    public Double getTotalSocialFundsByMember(Long memberId, Integer year) {
         log.info("Getting total social fund for a member");
-        Double totalSocialFundsByMember = socialFundRepository.getTotalSocialFundsByMember(memberId);
-        return  totalSocialFundsByMember!=null? totalSocialFundsByMember:0.0;
+        Double totalSocialFundsByMember = socialFundRepository.getTotalSocialFundsByMember(memberId, year);
+        return totalSocialFundsByMember != null ? totalSocialFundsByMember : 0.0;
+    }
+
+    public ResponsePage<SocialFund> getAllSocialFunds(PageableParam pageableParam) {
+        log.info("Getting all Social Funds");
+        return new ResponsePage<>(socialFundRepository.findAllSocialFunds(pageableParam.getPageable(true), pageableParam.key()));
+    }
+
+    public ResponsePage<SocialFund> getSocialFundsByMember(PageableParam pageableParam, Long memberId, Integer year) {
+        log.info("Getting Social Funds by Member");
+        return new ResponsePage<>(socialFundRepository.getSocialFundsByMember(pageableParam.getPageable(true), memberId, year));
+    }
+
+    public Response<SocialFund> deleteSocialFund(Long id) {
+        log.info("Deleting Social Fund");
+        if (id == null)
+            return Response.warning(null, "Social Fund ID is required");
+        Optional<SocialFund> optionalSocialFund = socialFundRepository.findById(id);
+        if (optionalSocialFund.isEmpty())
+            return Response.warning(null, "Contribution not found");
+        SocialFund socialFund = optionalSocialFund.get();
+        socialFund.delete();
+        try {
+            return new Response<>(socialFundRepository.save(socialFund));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.error("Could not delete monthly Social Fund for a member");
+        }
     }
 }

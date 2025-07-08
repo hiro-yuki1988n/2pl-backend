@@ -13,6 +13,8 @@ import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
+
 @Service
 @GraphQLApi
 public class MemberController {
@@ -21,7 +23,7 @@ public class MemberController {
     private MemberService memberService;
 
     @GraphQLMutation(name = "saveMkobaMember", description = "Saving Mkoba member")
-    public Response<Member> saveMkobaMember(@GraphQLArgument(name = "MemberDto") MemberDto memberDto) {
+    public Response<Member> saveMkobaMember(@GraphQLArgument(name = "memberDto") MemberDto memberDto) {
         return memberService.saveMkobaMember(memberDto);
     }
 
@@ -40,9 +42,21 @@ public class MemberController {
         return memberService.deleteMkobaMember(id);
     }
 
+    @GraphQLQuery(name = "getTotalNumberOfMembers", description = "Getting Total number of members")
+    public Response<Integer> getTotalNumberOfMembers() {
+        Integer members = memberService.getTotalNumberOfMembers();
+        return new Response<>(members);
+    }
+
     @GraphQLQuery(name = "getGroupSavings", description = "Getting Group savings")
     public Response<Double> getGroupSavings() {
         Double groupSavings = memberService.getGroupSavings();
         return new Response<>(groupSavings);
+    }
+
+    @GraphQLQuery(name = "getTotalMemberSharesByYear", description = "Getting Total Member Shares")
+    public Response<Double> getTotalMemberSharesByYear(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "year") Integer year) {
+        Double memberSharesByYear = memberService.getTotalMemberSharesByYear(memberId, year);
+        return new Response<>(memberSharesByYear);
     }
 }

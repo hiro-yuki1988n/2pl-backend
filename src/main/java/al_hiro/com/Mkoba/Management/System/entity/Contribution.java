@@ -9,6 +9,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Month;
 
 @Data
 @AllArgsConstructor
@@ -27,7 +28,8 @@ public class Contribution extends BaseEntity implements Serializable {
     private LocalDateTime paymentDate;
 
     @Column(name = "month")
-    private String month; // Month for which the contribution is being made (format: YYYY-MM)
+    @Enumerated(EnumType.STRING)
+    private Month month; // Month for which the contribution is being made (format: YYYY-MM)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id", referencedColumnName = "id")
@@ -41,4 +43,7 @@ public class Contribution extends BaseEntity implements Serializable {
 
     @Column(name = "penalty_amount", precision = 10, scale = 2)
     private BigDecimal penaltyAmount;
+
+    @Column(name = "year")
+    private Integer year;
 }

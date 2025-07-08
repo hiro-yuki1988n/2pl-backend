@@ -15,6 +15,6 @@ public class SocialFundDto {
     private Long id;
     private BigDecimal amount;
     private LocalDate paymentDate;
-    private Month month;
+    private String month;
     private Long memberId;
 }

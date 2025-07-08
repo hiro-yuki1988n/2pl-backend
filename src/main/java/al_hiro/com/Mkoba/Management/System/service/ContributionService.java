@@ -14,9 +14,12 @@ import lombok.extern.java.Log;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.time.format.DateTimeParseException;
+import java.time.Month;
+import java.time.Year;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -28,9 +31,10 @@ public class ContributionService {
     private final MemberRepository memberRepository;
 
     // Check if the payment was on time
-    private Boolean isOnTime(LocalDateTime datePaid, String month) {
-        int year = Integer.parseInt(month.split("-")[0]);
-        int monthNumber = Integer.parseInt(month.split("-")[1]);
+
+    private Boolean isOnTime(LocalDateTime datePaid, Month month) {
+        int year = Year.now().getValue();
+        int monthNumber = month.getValue();
         int lastDayOfMonth = java.time.YearMonth.of(year, monthNumber).lengthOfMonth(); // Get last day of the month
 
         // Calculate the last allowed time (last day of the month at 23:59:59)
@@ -40,67 +44,130 @@ public class ContributionService {
     }
 
     // Calculate the penalty if payment is late
+//    private BigDecimal calculatePenalty(Boolean isOnTime, BigDecimal amount) {
+//        if (!isOnTime) {
+//            // Example: 10% penalty if late
+//            return amount.multiply(BigDecimal.valueOf(0.10));
+//        }
+//        return BigDecimal.valueOf(0.0);
+//    }
+
     private BigDecimal calculatePenalty(Boolean isOnTime, BigDecimal amount) {
+        BigDecimal base = BigDecimal.valueOf(100000);
         if (!isOnTime) {
-            // Example: 10% penalty if late
-            return amount.multiply(BigDecimal.valueOf(0.10));
+            // 10% ya 100000 = 10000
+            return base.multiply(BigDecimal.valueOf(0.10));
         }
-        return BigDecimal.valueOf(0.0);
+        return BigDecimal.ZERO;
     }
 
     public Response<Contribution> saveContribution(ContributionDto contributionDto) {
         log.info("Saving contribution");
         if (contributionDto == null)
-            return Response.warning(null,"Contribution is required");
-
-        Contribution contribution;
-        if (contributionDto.getId() != null) {
-            Optional<Contribution> optionalContribution = contributionRepository.findById(contributionDto.getId());
-            if (optionalContribution.isEmpty())
-                return Response.warning(null,"Contribution not found");
-            contribution = optionalContribution.get();
-            contribution.update();
-        } else{
-            if(contributionRepository.findByMemberAndMonth(contributionDto.getMemberId(), contributionDto.getMonth()).isPresent())
-                return Response.warning(null,"Contribution for this member and month already exists");
-            contribution = new Contribution();
-        }
+            return Response.warning(null, "Contribution is required");
 
         if (contributionDto.getAmount() == null)
-            return Response.warning(null,"Amount paid is required");
+            return Response.warning(null, "Amount paid is required");
         if (contributionDto.getMonth() == null)
-            return Response.warning(null,"Month paid for is required");
+            return Response.warning(null, "Month paid for is required");
         if (contributionDto.getMemberId() == null)
-            return Response.warning(null,"Member who paid is required");
+            return Response.warning(null, "Member who paid is required");
+//        if (contributionDto.getPaymentDate() == null)
+//            return Response.warning(null, "Payment date is required");
 
-        contribution.setAmount(contributionDto.getAmount());
-        contribution.setMonth(contributionDto.getMonth());
-        contribution.setMember(Utils.entity(Member.class, contributionDto.getMemberId()));
-        contribution.setPaymentDate(LocalDateTime.now());
+        Contribution contribution;
+
+        // Check if contribution for the member and month already exists
+        Optional<Contribution> existingContribution =
+                contributionRepository.findByMemberAndMonth(contributionDto.getMemberId(), contributionDto.getMonth());
+
+        if (existingContribution.isPresent()) {
+            contribution = existingContribution.get();
+            log.info("Updating existing contribution for member: " + contributionDto.getMemberId() + " and month: " + contributionDto.getMonth());
+            BigDecimal newAmount = contribution.getAmount().add(contributionDto.getAmount());
+            contribution.setAmount(newAmount);
+            contribution.setPaymentDate(LocalDateTime.now());
+        } else {
+            log.info("Creating new contribution for member: " + contributionDto.getMemberId() + " and month: " + contributionDto.getMonth());
+            contribution = new Contribution();
+            contribution.setAmount(contributionDto.getAmount());
+            contribution.setMonth(contributionDto.getMonth());
+            contribution.setYear(Year.now().getValue());
+            contribution.setMember(Utils.entity(Member.class, contributionDto.getMemberId()));
+            contribution.setPaymentDate(LocalDateTime.now());
+        }
+
+        Optional<Member> optMember = memberRepository.findById(contributionDto.getMemberId());
+        if (optMember.isPresent()) {
+            Member member = optMember.get();
+
+            BigDecimal existingMemberShares = member.getMemberShares();
+            if (existingMemberShares == null) {
+                existingMemberShares = BigDecimal.ZERO;
+            }
+
+            BigDecimal updatedMemberShares = existingMemberShares.add(contributionDto.getAmount());
+            member.setMemberShares(updatedMemberShares);
+            memberRepository.save(member);
+        }
 
         // Check if payment was on time
-        if(!isOnTime(contribution.getPaymentDate(), contribution.getMonth())){
+        if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
             contribution.setOnTime(false);
             contribution.setPenaltyApplied(true);
-            contribution.setPenaltyAmount(calculatePenalty( false, contribution.getAmount()));
-        } else{
+            BigDecimal memberPenaltyAmount = calculatePenalty(false, contribution.getAmount());
+//            BigDecimal memberPenaltyAmount = BigDecimal.valueOf(10000);
+            contribution.setPenaltyAmount(memberPenaltyAmount);
+
+            List<Member> members = memberRepository.findAll(); // Fetch all group members
+
+            // Calculate total group savings using BigDecimal
+            BigDecimal groupSavings = members.stream()
+                    .map(Member::getMemberShares)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
+                return new Response<>("Total shares cannot be zero");
+            }
+
+            for (Member member : members) {
+                BigDecimal memberShares = member.getMemberShares();
+                if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
+//                    return new Response<>("Member shares must be non-null and non-negative");
+                    memberShares = BigDecimal.ZERO;
+                }
+
+                // Calculate member's share percentage
+                BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
+
+                // Calculate member's interest
+                BigDecimal memberInterest = memberPenaltyAmount.multiply(memberSharePercentage);
+
+                // Update member's shares
+                BigDecimal updatedShares = memberShares.add(memberInterest);
+                member.setMemberShares(updatedShares);
+                memberRepository.save(member); // Save updated member shares
+            }
+        }
+        if (isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
             contribution.setOnTime(true);
             contribution.setPenaltyApplied(false);
-            contribution.setPenaltyAmount(calculatePenalty( true, contribution.getAmount()));
+            contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
         }
 
         // Save contribution to database
-        try{
+        try {
             contributionRepository.save(contribution);
             return new Response<>(contribution);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             String message = Utils.getExceptionMessage(e);
-            if(message.contains("month"))
+            if (message.contains("month"))
                 return new Response<>("Invalid Month");
-            if(message.contains("(memberId)"))
+            if (message.contains("(memberId)"))
                 return new Response<>("Invalid Member");
-            if(message.contains("amount"))
+            if (message.contains("amount"))
                 return new Response<>("Invalid Amount");
             return new Response<>("Could not save monthly Contribution for a member");
         }
@@ -114,12 +181,12 @@ public class ContributionService {
     public Response<Contribution> getContribution(Long id) {
         log.info("Getting one contribution");
         if (id == null)
-            return Response.warning(null,"Contribution ID is required");
+            return Response.warning(null, "Contribution ID is required");
         Optional<Contribution> optionalContribution = contributionRepository.findById(id);
         return optionalContribution.map(Response::new).orElseGet(() -> Response.error("Contribution not found"));
     }
 
-    public ResponsePage<Contribution> getContributionsByMember(PageableParam pageableParam, Long id) {
+    public ResponsePage<Contribution> getContributionsByMember(PageableParam pageableParam, Long id, Integer year) {
         log.info("Getting contributions by member");
         if (id == null)
             return new ResponsePage<>("Member ID is required");
@@ -127,7 +194,7 @@ public class ContributionService {
         if (optionalMember.isEmpty())
             return new ResponsePage<>("Member not found");
         return new ResponsePage<>(contributionRepository.getAllByMember(pageableParam.getPageable(true),
-                pageableParam.getIsActive(), pageableParam.key(), id));
+                pageableParam.getIsActive(), pageableParam.key(), id, year));
     }
 
     public ResponsePage<Contribution> getMonthlyContributions(PageableParam pageableParam, String month) {
@@ -139,37 +206,18 @@ public class ContributionService {
         return new ResponsePage<>(contributionRepository.getAllByMonth(pageableParam.getPageable(true), pageableParam.getIsActive(), month));
     }
 
-//    private void fetchDataForMonth(YearMonth yearMonth) {
-//        if (yearMonth != null) {
-//            // Your database query logic to fetch data based on the yearMonth
-//            System.out.println("Fetching data for " + yearMonth);
-//        } else {
-//            System.out.println("Invalid month, cannot fetch data.");
-//        }
-//    }
-
-//    private YearMonth processMonth(String month) {
-//        try {
-//            // Parse the month input (e.g., "2024-10") into a YearMonth object
-//            return YearMonth.parse(month);
-//        } catch (DateTimeParseException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-
     public Response<Contribution> deleteContribution(Long id) {
         log.info("Deleting contribution");
         if (id == null)
-            return Response.warning(null,"Contribution ID is required");
+            return Response.warning(null, "Contribution ID is required");
         Optional<Contribution> optionalContribution = contributionRepository.findById(id);
         if (optionalContribution.isEmpty())
-            return Response.warning(null,"Contribution not found");
+            return Response.warning(null, "Contribution not found");
         Contribution contribution = optionalContribution.get();
         contribution.delete();
-        try{
+        try {
             return new Response<>(contributionRepository.save(contribution));
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             return Response.error("Could not delete monthly Contribution for a member");
         }
@@ -178,10 +226,10 @@ public class ContributionService {
     public Double getTotalContributions() {
         log.info("Getting total contributions");
         Double totalContributions = contributionRepository.getTotalContributions();
-        return  totalContributions!=null ? totalContributions:0.0;
+        return totalContributions != null ? totalContributions : 0.0;
     }
 
-    public Double getTotalMemberContributions(Long memberId) {
+    public Double getTotalMemberContributions(Long memberId, Integer year) {
         log.info("Getting total contributions for a member");
         if (memberId == null) {
             return null; // or throw an exception or return a default value
@@ -190,7 +238,35 @@ public class ContributionService {
         if (optionalMember.isEmpty()) {
             return null; // or throw an exception or return a default value
         }
-        Double totalContributions = contributionRepository.getTotalContributionsByMember(memberId);
+        Double totalContributions = contributionRepository.getTotalContributionsByMember(memberId, year);
         return totalContributions != null ? totalContributions : 0.0;
+    }
+
+    public Double getContributionTotalPenalties(Month month, Integer year) {
+        Double contributionTotalPenalties = contributionRepository.findContributionPenalties(month, year);
+        return contributionTotalPenalties != null ? contributionTotalPenalties : 0.0;
+    }
+
+    public Double getTotalContributionsByMonthAndYear(Month month, Integer year) {
+        log.info("Getting total contributions for a month and year");
+        if (month == null) {
+            month = LocalDateTime.now().getMonth();
+        }
+        if (year == null) {
+            year = Year.now().getValue();
+        }
+        Double totalContributionsByMonthAndYear = contributionRepository.getTotalContributionsByMonthAndYear(month, year);
+        return totalContributionsByMonthAndYear != null ? totalContributionsByMonthAndYear : 0.0;
+    }
+
+    public ResponsePage<Contribution> getLateContributionsByMember(PageableParam pageableParam, Long id, Integer year) {
+        log.info("Getting late contributions by member");
+        if (id == null)
+            return new ResponsePage<>("Member ID is required");
+        Optional<Member> optionalMember = memberRepository.findById(id);
+        if (optionalMember.isEmpty())
+            return new ResponsePage<>("Member not found");
+        return new ResponsePage<>(contributionRepository.findAllByMember(pageableParam.getPageable(true),
+                pageableParam.getIsActive(), pageableParam.key(), id, year));
     }
 }

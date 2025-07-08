@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Month;
+import java.util.Map;
 
 @Service
 @GraphQLApi
@@ -29,16 +30,35 @@ public class SocialFundController {
         return socialFundService.saveSocialFund(socialFundDto);
     }
 
+    @GraphQLQuery(name = "getAllSocialFunds", description = "Getting a list of Social funds")
+    public ResponsePage<SocialFund> getAllSocialFunds(@GraphQLArgument(name = "pageableParam")PageableParam pageableParam){
+        return socialFundService.getAllSocialFunds(pageableParam!=null?pageableParam:new PageableParam());
+    }
+
+    @GraphQLQuery(name = "getSocialFundsByMember", description = "Getting a list of Social funds for a member")
+    public ResponsePage<SocialFund> getSocialFundsByMember(@GraphQLArgument(name = "pageableParam")PageableParam pageableParam,
+                                                           @GraphQLArgument(name = "memberId") Long memberId,
+                                                           @GraphQLArgument(name = "year") Integer year){
+        return socialFundService.getSocialFundsByMember(pageableParam!=null?pageableParam:new PageableParam(), memberId, year);
+    }
+
     @GraphQLQuery(name = "getSocialFundsByMonth", description = "Getting a list of Social funds by month")
     public ResponsePage<SocialFund> getSocialFundsByMonth(@GraphQLArgument(name = "pageableParam")PageableParam pageableParam, @GraphQLArgument(name = "month") Month month){
         return socialFundService.getSocialFundsByMonth(month, pageableParam!=null?pageableParam:new PageableParam());
     }
 
-    @GraphQLQuery(name = "getTotalSocialFunds", description = "Getting Group's total social fund")
+//    @GraphQLQuery(name = "getTotalSocialFunds", description = "Getting Group's total social fund")
+//    public Response<Double> getTotalSocialFunds() {
+//        Double totalSocialFunds = socialFundService.getTotalSocialFunds();
+//        return new Response<>(totalSocialFunds);
+//    }
+
+    @GraphQLQuery(name = "getTotalSocialFunds" , description = "Getting Group's total social fund")
     public Response<Double> getTotalSocialFunds() {
         Double totalSocialFunds = socialFundService.getTotalSocialFunds();
         return new Response<>(totalSocialFunds);
     }
+
 
     @GraphQLQuery(name = "getTotalSocialFundsByMonth", description = "Getting Group's total social funds by month")
     public Response<Double> getTotalSocialFundsByMonth(@GraphQLArgument(name = "month") String month) {
@@ -47,8 +67,13 @@ public class SocialFundController {
     }
 
     @GraphQLQuery(name = "getTotalSocialFundsByMember", description = "Getting Group's total social funds by member")
-    public Response<Double> getTotalSocialFundsByMember(@GraphQLArgument(name = "memberId") Long memberId) {
-        Double totalSocialFundsByMember = socialFundService.getTotalSocialFundsByMember(memberId);
+    public Response<Double> getTotalSocialFundsByMember(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "year") Integer year) {
+        Double totalSocialFundsByMember = socialFundService.getTotalSocialFundsByMember(memberId, year);
         return new Response<>(totalSocialFundsByMember);
+    }
+
+    @GraphQLMutation(name = "deleteSocialFund", description = "Deleting community fund - DELETE_COMMUNITY_FUND")
+    public Response<SocialFund> deleteSocialFund(@GraphQLArgument(name = "socialFundId") Long id) {
+        return socialFundService.deleteSocialFund(id);
     }
 }

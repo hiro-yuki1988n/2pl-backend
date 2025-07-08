@@ -13,6 +13,8 @@ import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 
+import java.time.Month;
+
 @Controller
 @GraphQLApi
 @RequiredArgsConstructor
@@ -37,8 +39,9 @@ public class ContributionController {
 
     @GraphQLQuery(name = "getContributionsByMember", description = "Get contributions by Member - VIEW_MEMBER_CONTRIBUTIONS")
     public ResponsePage<Contribution> getContributionsByMember(@GraphQLArgument(name = "pageableParam") PageableParam pageableParam,
-                                                               @GraphQLArgument(name = "memberId") Long id) {
-        return contributionService.getContributionsByMember(pageableParam != null ? pageableParam : new PageableParam(), id);
+                                                               @GraphQLArgument(name = "memberId") Long id,
+                                                               @GraphQLArgument(name = "year") Integer year) {
+        return contributionService.getContributionsByMember(pageableParam != null ? pageableParam : new PageableParam(), id, year);
     }
 
     @GraphQLQuery(name = "getMonthlyContributions", description = "Get monthly contributions - VIEW_MONTHLY_CONTRIBUTIONS")
@@ -59,8 +62,28 @@ public class ContributionController {
     }
 
     @GraphQLQuery(name = "getTotalMemberContributions", description = "Getting total member contributions")
-    public Response<Double> getTotalMemberContributions(@GraphQLArgument(name = "memberId") Long memberId) {
-        Double totalMemberContributions = contributionService.getTotalMemberContributions(memberId);
+    public Response<Double> getTotalMemberContributions(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "year") Integer year) {
+        Double totalMemberContributions = contributionService.getTotalMemberContributions(memberId, year);
         return new Response<>(totalMemberContributions);
+    }
+
+    @GraphQLQuery(name = "getContributionTotalPenalties", description = "Getting Group's profit from contribution penalties")
+    public Response<Double> getContributionTotalPenalties(@GraphQLArgument(name = "month") Month month,@GraphQLArgument(name = "year") Integer year) {
+        Double contributionTotalPenalties = contributionService.getContributionTotalPenalties(month, year);
+        return new Response<>(contributionTotalPenalties);
+    }
+
+    @GraphQLQuery(name = "getTotalContributionsByMonthAndYear", description = "Getting Group's total member contributions")
+    public Response<Double> getTotalContributionsByMonthAndYear(@GraphQLArgument(name = "month") Month month,
+                                                                @GraphQLArgument(name = "year") Integer year) {
+        Double totalContributionsByMonthAndYear = contributionService.getTotalContributionsByMonthAndYear(month, year);
+        return new Response<>(totalContributionsByMonthAndYear);
+    }
+
+    @GraphQLQuery(name = "getLateContributionsByMember", description = "Get late contributions by Member - VIEW_MEMBER_CONTRIBUTIONS")
+    public ResponsePage<Contribution> getLateContributionsByMember(@GraphQLArgument(name = "pageableParam") PageableParam pageableParam,
+                                                               @GraphQLArgument(name = "memberId") Long id,
+                                                               @GraphQLArgument(name = "year") Integer year) {
+        return contributionService.getLateContributionsByMember(pageableParam != null ? pageableParam : new PageableParam(), id, year);
     }
 }

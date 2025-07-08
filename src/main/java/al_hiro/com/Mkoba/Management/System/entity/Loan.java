@@ -46,6 +46,9 @@ public class Loan extends BaseEntity{
     @Column(name = "payable_amount")
     private Double payableAmount;
 
+    @Column(name = "unpaid_amount")
+    private Double unpaidAmount;
+
     public double calculatePenalty() {
         if (!isPaid && LocalDate.now().isAfter(dueDate) && !isPenaltyApplied) {
             isPenaltyApplied = true;

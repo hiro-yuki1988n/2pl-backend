@@ -11,6 +11,10 @@ import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.Year;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -24,8 +28,9 @@ public class MemberService {
         if(memberDto == null)
             return new Response<>("Data is required");
         Optional<Member> existingMember = memberRepository.findMemberByEmail(memberDto.getEmail());
-        if(existingMember.isPresent())
+        if(existingMember.isPresent() && !existingMember.get().getId().equals(memberDto.getId()))
             return new Response<>("Email already exists");
+
         Member member;
         if(memberDto.getId()!=null){
             Optional<Member> optionalMember = memberRepository.findById(memberDto.getId());
@@ -41,15 +46,14 @@ public class MemberService {
             return new Response<>("Email is required");
         if(memberDto.getPhone().isEmpty())
             return new Response<>("Phone is required");
-        if(memberDto.getPassword().isEmpty())
-            return new Response<>("Password is required");
         if(memberDto.getMemberRole() == null)
             return new Response<>("Member role is required");
 
         member.setName(memberDto.getName());
+        member.setGender(memberDto.getGender());
         member.setEmail(memberDto.getEmail());
         member.setPhone(memberDto.getPhone());
-        member.setPassword(memberDto.getPassword());
+        member.setJoiningDate(memberDto.getJoiningDate());
         member.setMemberRole(memberDto.getMemberRole());
         try {
             memberRepository.save(member);
@@ -101,5 +105,18 @@ public class MemberService {
     public Double getGroupSavings() {
         Double groupSavings = memberRepository.getGroupSavings();
         return  groupSavings!=null ? groupSavings:0.0;
+    }
+
+    public Integer getTotalNumberOfMembers() {
+        return (int) memberRepository.count();
+    }
+
+    public Double getTotalMemberSharesByYear(Long memberId, Integer year) {
+        log.info("Getting Total Member Shares for a current year");
+        if (year == null) {
+            year = Year.now().getValue();
+        }
+        Double totalMemberSharesByYear = memberRepository.getTotalMemberSharesByYear(memberId, year);
+        return totalMemberSharesByYear != null ? totalMemberSharesByYear : 0.0;
     }
 }

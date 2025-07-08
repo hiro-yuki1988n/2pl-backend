@@ -1,19 +1,21 @@
 package al_hiro.com.Mkoba.Management.System.entity;
 
 import al_hiro.com.Mkoba.Management.System.enums.MemberRole;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "members")
 public class Member extends BaseEntity implements Serializable {
 
@@ -28,14 +30,17 @@ public class Member extends BaseEntity implements Serializable {
     @Column(name = "name")
     private String name;
 
+    @Column(name = "gender")
+    private String gender;
+
     @Column(name = "email")
     private String email;
 
     @Column(name = "phone")
     private String phone;
 
-    @Column(name = "password")
-    private String password;
+    @Column(name = "joining_date")
+    private LocalDate joiningDate;
 
     @Column(name = "member_role")
     @Enumerated(EnumType.STRING)

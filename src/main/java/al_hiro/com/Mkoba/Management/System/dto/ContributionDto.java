@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.Month;
 
 @Data
 @AllArgsConstructor
@@ -12,7 +14,8 @@ import java.math.BigDecimal;
 public class ContributionDto {
     private Long id;
     private BigDecimal amount;
-    private String month;
+    private Month month;
+//    private LocalDateTime paymentDate;
     private Long memberId;
 }
 

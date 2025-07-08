@@ -1,11 +1,11 @@
 package al_hiro.com.Mkoba.Management.System.service;
 
 import al_hiro.com.Mkoba.Management.System.dto.LoanPaymentDto;
-import al_hiro.com.Mkoba.Management.System.dto.MemberDto;
 import al_hiro.com.Mkoba.Management.System.dto.SaveLoanDto;
 import al_hiro.com.Mkoba.Management.System.entity.Loan;
 import al_hiro.com.Mkoba.Management.System.entity.LoanPayment;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
+import al_hiro.com.Mkoba.Management.System.repository.ContributionRepository;
 import al_hiro.com.Mkoba.Management.System.repository.LoanPaymentRepository;
 import al_hiro.com.Mkoba.Management.System.repository.LoanRepository;
 import al_hiro.com.Mkoba.Management.System.repository.MemberRepository;
@@ -15,12 +15,17 @@ import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
 import al_hiro.com.Mkoba.Management.System.utils.Utils;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.io.Console;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.Month;
+import java.time.Year;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -28,6 +33,8 @@ import java.util.Optional;
 @Service
 @Log
 public class LoanService {
+    @Autowired
+    private ContributionRepository contributionRepository;
 
     @Autowired
     private LoanRepository loanRepository;
@@ -40,6 +47,9 @@ public class LoanService {
 
     @Autowired
     private MemberService memberService;
+
+    @Autowired
+    private ContributionService contributionService;
 
     public Response<Loan> saveLoan(SaveLoanDto saveLoanDto) {
         if (saveLoanDto == null)
@@ -81,11 +91,12 @@ public class LoanService {
         loan.setInterestRate(saveLoanDto.getInterestRate());
         loan.setAmount(saveLoanDto.getAmount());
         loan.setPayableAmount(saveLoanDto.getAmount()+interestAmount);
+        loan.setUnpaidAmount(saveLoanDto.getAmount()+interestAmount);
         loan.setInterestAmount(interestAmount);
 
         List<Member> members = memberRepository.findAll(); // Fetch all group members
 
-// Calculate total group savings using BigDecimal
+        // Calculate total group savings using BigDecimal
         BigDecimal groupSavings = members.stream()
                 .map(Member::getMemberShares)
                 .filter(Objects::nonNull)
@@ -98,7 +109,7 @@ public class LoanService {
         for (Member member : members) {
             BigDecimal memberShares = member.getMemberShares();
             if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
-                return new Response<>("Member shares must be non-null and non-negative");
+                memberShares = BigDecimal.ZERO;
             }
 
             // Calculate member's share percentage
@@ -112,7 +123,6 @@ public class LoanService {
             member.setMemberShares(updatedShares);
             memberRepository.save(member); // Save updated member shares
         }
-
 
         try {
             loanRepository.save(loan); // Save loan after interest calculation
@@ -129,7 +139,6 @@ public class LoanService {
             return new Response<>("Could not save loan");
         }
     }
-
 
     public ResponsePage<Loan> getMembersLoans(PageableParam pageableParam) {
         return new ResponsePage<>(loanRepository.getMembersLoans(pageableParam.getPageable(true), pageableParam.key()));
@@ -161,8 +170,8 @@ public class LoanService {
         }
     }
 
-    public ResponsePage<Loan> getLoanByMember(Long memberId, PageableParam pageableParam) {
-        return new ResponsePage<>(loanRepository.getLoanByMember(memberId, pageableParam.getPageable(true), pageableParam.key()));
+    public ResponsePage<Loan> getLoanByMember(Long memberId, PageableParam pageableParam, Integer year) {
+        return new ResponsePage<>(loanRepository.getLoanByMember(memberId, pageableParam.getPageable(true), pageableParam.key(), year));
     }
 
     public Response<LoanPayment> saveLoanPayment(LoanPaymentDto loanPaymentDto) {
@@ -173,48 +182,6 @@ public class LoanService {
         if (existingLoanOpt.isEmpty())
             return new Response<>("Loan does not exist");
         Loan existingLoan = existingLoanOpt.get();
-
-        // Check if the payment is after the due date and apply a penalty if needed
-        if (!existingLoan.getIsPaid() && LocalDate.now().isAfter(existingLoan.getDueDate()) && !existingLoan.getIsPenaltyApplied()) {
-            double penalty = existingLoan.calculatePenalty(); // 10% penalty
-            existingLoan.setIsPenaltyApplied(true);
-//            existingLoan.setAmount(existingLoan.getAmount() + penalty); // Apply penalty to loan amount
-            existingLoan.setPenaltyAmount(penalty);
-
-//            Double amountToBePaid = existingLoan.getInterestAmount() + penalty;
-            existingLoan.setPayableAmount(existingLoan.getPayableAmount()+penalty); // Update the amount to be paid
-
-            List<Member> members = memberRepository.findAll(); // Fetch all group members
-            BigDecimal groupSavings = members.stream()
-                    .map(Member::getMemberShares)
-                    .filter(Objects::nonNull)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
-                return new Response<>("Total shares cannot be zero");
-            }
-
-            for (Member member : members) {
-                BigDecimal memberShares = member.getMemberShares();
-                if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
-                    return new Response<>("Member shares must be non-null and non-negative");
-                }
-                BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP); // Member's share percentage
-                BigDecimal penaltyDistribution = BigDecimal.valueOf(penalty).multiply(memberSharePercentage); // Interest for this member
-
-                // Update the member's shares
-                BigDecimal updatedShares = memberShares.add(penaltyDistribution);
-                member.setMemberShares(updatedShares);
-                memberRepository.save(member); // Save the updated member
-            }
-            try {
-                loanRepository.save(existingLoan);
-            } catch (Exception e) {
-                e.printStackTrace();
-                String msg = Utils.getExceptionMessage(e);
-                return Response.error(msg);
-            }
-        }
 
         LoanPayment loanPayment;
         if (loanPaymentDto.getId() != null) {
@@ -241,12 +208,13 @@ public class LoanService {
         loanPayment.setLoan(existingLoan);
 
         // Update the loan balance and payment status
-        double remainingAmount = existingLoan.getPayableAmount() - loanPaymentDto.getAmount();
+        double remainingAmount = existingLoan.getUnpaidAmount() - loanPaymentDto.getAmount();
         if (remainingAmount <= 0) {
 //            existingLoan.setAmount(0.0);
             existingLoan.setIsPaid(true);
+            existingLoan.setUnpaidAmount(0.0);
         } else {
-            existingLoan.setPayableAmount(remainingAmount);
+            existingLoan.setUnpaidAmount(remainingAmount);
         }
         try {
             loanPaymentRepository.save(loanPayment);
@@ -264,17 +232,157 @@ public class LoanService {
         }
     }
 
-    public ResponsePage<LoanPayment> getLoanPaymentsByMember(Long memberId, PageableParam pageableParam) {
-        return new ResponsePage<>(loanPaymentRepository.getLoanPaymentsByMember(memberId, pageableParam.getPageable(true), pageableParam.key()));
+    public ResponsePage<LoanPayment> getLoanPaymentsByMember(Long memberId, PageableParam pageableParam, Integer year) {
+        return new ResponsePage<>(loanPaymentRepository.getLoanPaymentsByMember(memberId, pageableParam.getPageable(true), pageableParam.key(), year));
     }
 
     public Double getGroupLoansProfit() {
-        Double totalProfits = loanRepository.getGroupLoansProfit();
+        Double totalProfits = loanRepository.findTotalLoansProfit();
         return totalProfits != null ? totalProfits : 0.0;
     }
 
-    public Double getGroupTotalPenalties() {
-        Double totalPenalties = loanRepository.findTotalPenalties();
-        return totalPenalties != null ? totalPenalties : 0.0;
+    public Double getLoansProfitByMonth(Month month, int year) {
+        log.info("Getting total loan profits for a month");
+        if (month == null) {
+            month = LocalDateTime.now().getMonth();
+        }
+        if (year == 0) {
+            year = LocalDateTime.now().getYear();
+        }
+        int monthValue = month.getValue(); // Convert to 1-12
+        Double profitByMonth = loanRepository.findLoansProfitByMonth(monthValue,year);
+        return profitByMonth != null ? profitByMonth : 0.0;
+    }
+
+    public Double getLoanTotalPenalties(Month month, int year) {
+        Double loanTotalPenalties = loanRepository.findLoanPenalties(month, year);
+        return loanTotalPenalties != null ? loanTotalPenalties : 0.0;
+    }
+
+    public Double getSumOfLoansForMonth(Month month) {
+        Double totalMonthlyLoans = loanRepository.getSumOfLoansForMonth(month);
+        return totalMonthlyLoans != null ? totalMonthlyLoans : 0.0;
+    }
+
+    public Double getGroupTotalPenalties(Month month, int year) {
+        Double penaltiesFromLoan = getLoanTotalPenalties(month, year);
+        Double penaltiesFromMonthlyContributions = contributionService.getContributionTotalPenalties(month, year);
+        return penaltiesFromLoan + penaltiesFromMonthlyContributions;
+    }
+
+    public Double getCurrentMonthLoanPenalties(Month month) {
+        LocalDate localDate = LocalDate.now().with(TemporalAdjusters.firstDayOfMonth());
+        Month currentMonth = localDate.getMonth();
+        if (month.equals(currentMonth.name())) {
+            Double currentMonthLoanPenalties = loanRepository.findCurrentMonthLoanPenalties(month);
+            return currentMonthLoanPenalties;
+        } else {
+            return 0.0;
+        }
+    }
+
+//    public ResponsePage<Loan> getPenaltiesByMonth(Month month, PageableParam pageableParam) {
+//        log.info("Getting Penalties by Month");
+//        return new ResponsePage<>(loanRepository.getPenaltiesByMonth(month, pageableParam.getPageable(true), pageableParam.key()));
+//    }
+
+    public Double getTotalPenaltiesByMonth(Month month, int year) {
+        log.info("Getting total penalties for a month");
+        if (month == null) {
+            month = LocalDateTime.now().getMonth();
+        }
+        int monthValue = month.getValue(); // Convert to 1-12
+        Double totalMonthlyPenalties = loanRepository.findTotalPenaltiesByMonth(monthValue, year);
+        return totalMonthlyPenalties != null ? totalMonthlyPenalties : 0.0;
+    }
+
+    public Double getGroupStandingDebt(Integer year) {
+        if (year == null) {
+            year = Year.now().getValue();
+        }
+        Double totalDebt = loanRepository.findTotalDebt(year);
+        return totalDebt != null ? totalDebt : 0.0;
+    }
+
+    public Double getTotalLoansByMember(Long memberId, Integer year) {
+        log.info("Getting total loan for a member");
+        Double totalLoansByMember = loanRepository.getTotalLoansByMember(memberId, year);
+        return totalLoansByMember != null ? totalLoansByMember : 0.0;
+    }
+
+    public Double getTotalPenaltiesByMember(Long memberId, Integer year) {
+        log.info("Getting member's total penalties");
+        Double memberPenalties = loanRepository.findTotalPenaltiesByMember(memberId, year);
+        return memberPenalties != null ? memberPenalties : 0.0;
+    }
+
+    public ResponsePage<Loan> getLatePaidLoansByMember(Long memberId, PageableParam pageableParam, Integer year) {
+        return new ResponsePage<>(loanRepository.findLatePaidLoansByMember(memberId, pageableParam.getPageable(true), pageableParam.key(), year));
+    }
+
+    public ResponsePage<LoanPayment> getLoanPayments(PageableParam pageableParam, Integer year) {
+        log.info("Getting all loan payments");
+        return new ResponsePage<>(loanPaymentRepository.getLoanPayments(pageableParam.getPageable(true), pageableParam.key(), year));
+    }
+
+    @Scheduled(cron = "0 0 0 * * *") // Saa 6 usiku (00:00)
+//    @Scheduled(cron = "0 * * * * *") // Run kila baada ya dakika 1
+    @Transactional
+    public void applyPenaltiesForOverdueLoans() {
+        List<Loan> overdueLoans = loanRepository.findAllByIsPaidFalseAndIsPenaltyAppliedFalseAndDueDateBefore(LocalDate.now());
+
+        if (overdueLoans.isEmpty()) return;
+
+        List<Member> members = memberRepository.findAll();
+        BigDecimal groupSavings = members.stream()
+                .map(Member::getMemberShares)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
+            System.err.println("Total member shares cannot be zero.");
+            return;
+        }
+
+        for (Loan loan : overdueLoans) {
+            double penalty = loan.calculatePenalty(); // e.g. 10% of unpaid or payable amount
+            loan.setPenaltyAmount(penalty);
+            loan.setIsPenaltyApplied(true);
+            loan.setPayableAmount(loan.getPayableAmount() + penalty);
+            loan.setUnpaidAmount(loan.getUnpaidAmount() + penalty);
+
+            for (Member member : members) {
+                BigDecimal memberShares = member.getMemberShares();
+                if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+                BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
+                BigDecimal penaltyDistribution = BigDecimal.valueOf(penalty).multiply(memberSharePercentage);
+
+                BigDecimal updatedShares = memberShares.add(penaltyDistribution);
+                member.setMemberShares(updatedShares);
+            }
+
+            loanRepository.save(loan); // Save updated loan
+        }
+
+        memberRepository.saveAll(members); // Save all updated members
+        System.out.println("Penalties applied to overdue loans at midnight.");
+    }
+
+    public Response<LoanPayment> deleteLoanPayment(Long id) {
+        if (id == null)
+            return new Response<>("Loan payment identity required");
+        Optional<LoanPayment> optionalLoanPayment = loanPaymentRepository.findById(id);
+        if (optionalLoanPayment.isEmpty())
+            return new Response<>("Loan not found");
+        LoanPayment loanPayment = optionalLoanPayment.get();
+        try {
+            loanPayment.delete();
+            return new Response<>(loanPaymentRepository.save(optionalLoanPayment.get()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            String msg = Utils.getExceptionMessage(e);
+            return Response.error(msg);
+        }
     }
 }
