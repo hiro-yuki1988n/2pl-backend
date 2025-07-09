@@ -2,11 +2,13 @@ package al_hiro.com.Mkoba.Management.System.service;
 
 import al_hiro.com.Mkoba.Management.System.dto.MemberDto;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
+import al_hiro.com.Mkoba.Management.System.repository.ExpendituresRepository;
 import al_hiro.com.Mkoba.Management.System.repository.MemberRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
 import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
 import al_hiro.com.Mkoba.Management.System.utils.Utils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,10 +21,16 @@ import java.util.Optional;
 
 @Service
 @Log
+@RequiredArgsConstructor
 public class MemberService {
 
-    @Autowired
-    private MemberRepository memberRepository;
+    private final ExpendituresRepository expendituresRepository;
+
+    private final MemberRepository memberRepository;
+
+    private final ExpendituresService expendituresService;
+
+    private final SocialFundService socialFundService;
 
     public Response<Member> saveMkobaMember(MemberDto memberDto) {
         if(memberDto == null)
@@ -103,7 +111,10 @@ public class MemberService {
     }
 
     public Double getGroupSavings() {
-        Double groupSavings = memberRepository.getGroupSavings();
+        Double memberShares = memberRepository.getGroupSavings();
+        Double socialFund = socialFundService.getTotalSocialFunds();
+        Double groupExpenditures = expendituresService.calculateTotalExpenditures();
+        Double groupSavings = (memberShares + socialFund)-groupExpenditures;
         return  groupSavings!=null ? groupSavings:0.0;
     }
 

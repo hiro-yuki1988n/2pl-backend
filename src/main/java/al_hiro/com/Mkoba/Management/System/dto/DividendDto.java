@@ -12,9 +12,5 @@ import java.math.BigDecimal;
 public class DividendDto {
     private Long id;
     private Long memberId;
-    private String memberUid; // Tunatumia uid ya Member badala ya object kamili
-    private int year;
-    private BigDecimal allocatedAmount;
     private BigDecimal withdrawnAmount; // inaweza kuwa null, tutaiweka kuwa ZERO tukisave
-    private Boolean approved; // true / false
 }

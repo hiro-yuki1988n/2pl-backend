@@ -7,6 +7,7 @@ import al_hiro.com.Mkoba.Management.System.repository.YearlyDividendRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
 import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
+import al_hiro.com.Mkoba.Management.System.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
 import org.springframework.data.domain.Page;
@@ -33,12 +34,8 @@ public class YearlyDividendService {
         log.info("User is saving yearly dividend for memberUid");
 
         // Validate input
-        if (dto.getMemberId() == null || dto.getMemberUid().isBlank()) {
-            return new Response<>("Member UID is required");
-        }
-
-        if (dto.getAllocatedAmount() == null || dto.getAllocatedAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            return new Response<>("Allocated amount must be greater than 0");
+        if (dto.getMemberId() == null) {
+            return new Response<>("Member ID is required");
         }
 
         // Get member
@@ -47,74 +44,51 @@ public class YearlyDividendService {
             return new Response<>("Member not found");
         }
 
-        BigDecimal withdrawnAmount = dto.getWithdrawnAmount() != null ? dto.getWithdrawnAmount() : BigDecimal.ZERO;
-
-        if (withdrawnAmount.compareTo(dto.getAllocatedAmount()) > 0) {
+        if (dto.getWithdrawnAmount().compareTo(member.get().getMemberShares()) > 0) {
             return new Response<>("Withdrawn amount cannot exceed allocated amount");
         }
+
+        BigDecimal withdrawnAmount = dto.getWithdrawnAmount() != null ? dto.getWithdrawnAmount() : BigDecimal.ZERO;
 
         // Create and populate YearlyDividend
         YearlyDividend dividend = new YearlyDividend();
         dividend.setMember(member.get());
         dividend.setYear(LocalDate.now().getYear()); // current year
-        dividend.setAllocatedAmount(dto.getAllocatedAmount());
+        dividend.setAllocatedAmount(member.get().getMemberShares());
         dividend.setWithdrawnAmount(withdrawnAmount);
-        dividend.setRemainingBalance(dto.getAllocatedAmount().subtract(withdrawnAmount));
-        dividend.setApproved(false); // not approved during initial save
-        dividend.setApprovedAt(null); // no approval timestamp yet
 
         // Save
         YearlyDividend saved = yearlyDividendRepository.save(dividend);
-        log.info("Yearly Dividend saved with ID");
+        log.info("Yearly Dividend saved with ID: " + saved.getId());
 
-        return new Response<>("Saved successfully");
+        return new Response<>(saved);
     }
 
-
     public ResponsePage<YearlyDividend> getYearlyDividendByMember(Long memberId, PageableParam pageableParam, Integer year) {
-        log.info("Fetching yearly dividends for memberId");
-
-        if (memberId == null) {
-            return new ResponsePage<>("Member ID is required");
-        }
-
-        boolean memberExists = memberRepository.existsById(memberId);
-        if (!memberExists) {
-            return new ResponsePage<>("Member not found");
-        }
-
-        Pageable pageable = PageRequest.of(
-                pageableParam != null ? pageableParam.getPage() : 0,
-                pageableParam != null ? pageableParam.getSize() : 10,
-                Sort.by("year").descending()
-        );
-
-        Page<YearlyDividend> page = (year != null)
-                ? yearlyDividendRepository.findByMemberIdAndYear(memberId, year, pageable)
-                : yearlyDividendRepository.findByMemberId(memberId, pageable);
-
-        return new ResponsePage<>("Fetched successfully");
+        log.info("Fetching yearly dividends for memberId" + memberId);
+        return new ResponsePage<>(yearlyDividendRepository.findByMemberIdAndYear(memberId, pageableParam.getPageable(true), pageableParam.key(), year));
     }
 
     public Response<YearlyDividend> deleteYearlyDividend(Long id) {
         log.info("Deleting Yearly Dividend with id");
 
-        if (id == null) {
+        if (id == null)
             return new Response<>("YearlyDividend ID is required");
-        }
 
         Optional<YearlyDividend> optional = yearlyDividendRepository.findById(id);
-        if (optional.isEmpty()) {
+        if (optional.isEmpty())
             return new Response<>("YearlyDividend not found");
+        YearlyDividend yearlyDividend = optional.get();
+
+        try {
+            yearlyDividend.delete();
+            return new Response<>(yearlyDividendRepository.save(optional.get()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            String msg = Utils.getExceptionMessage(e);
+            return Response.error(msg);
         }
-
-        yearlyDividendRepository.deleteById(id);
-        log.info("Yearly Dividend deleted with id");
-
-
-        return new Response<>("Deleted successfully");
     }
-
 
     public Response<YearlyDividend> approveDividend(Long yearlyDividendId) {
         log.info("Approving member's yearly dividend ");

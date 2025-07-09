@@ -31,7 +31,7 @@ public interface ContributionRepository extends JpaRepository<Contribution, Long
     Double getTotalContributionsByMember(Long memberId, Integer year);
 
     @Query("SELECT SUM(c.penaltyAmount) FROM Contribution c WHERE c.penaltyApplied = true AND c.isActive=true and c.month = :month AND c.year=:year")
-    Double findContributionPenalties(Month month, Integer year);
+    Double findContributionPenalties(Integer month, Integer year);
 
     @Query("SELECT SUM(c.amount) FROM Contribution c WHERE c.isActive=true AND c.month = :month AND c.year=:year")
     Double getTotalContributionsByMonthAndYear(Month month, Integer year);

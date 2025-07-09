@@ -18,8 +18,8 @@ import org.springframework.stereotype.Controller;
 @GraphQLApi
 @RequiredArgsConstructor
 public class ExpendituresController {
-    @Autowired
-    private ExpendituresService expendituresService;
+
+    private final ExpendituresService expendituresService;
 
     @GraphQLMutation(name = "saveExpenditure", description = "Save Expenditure - SAVE_EXPENDITURE")
     public Response<Expenditures> saveExpenditure(@GraphQLArgument(name = "expendituresDto") ExpendituresDto expendituresDto) {

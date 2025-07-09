@@ -1,11 +1,6 @@
 package al_hiro.com.Mkoba.Management.System.controller;
 
-<<<<<<< HEAD
 import al_hiro.com.Mkoba.Management.System.dto.DividendDto;
-import al_hiro.com.Mkoba.Management.System.dto.SaveLoanDto;
-import al_hiro.com.Mkoba.Management.System.entity.Loan;
-=======
->>>>>>> adfba08bff30ef050bb804bb0e2058353dd368bf
 import al_hiro.com.Mkoba.Management.System.entity.YearlyDividend;
 import al_hiro.com.Mkoba.Management.System.service.YearlyDividendService;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
@@ -25,8 +20,7 @@ public class YearlyDividendController {
 
     private final YearlyDividendService yearlyDividendService;
 
-<<<<<<< HEAD
-    @GraphQLMutation(name = "saveYearlyDividend", description = "Saving Yearly Dividend")
+    @GraphQLMutation(name = "saveYearlyDividend", description = "Saving Member Yearly Dividend")
     public Response<YearlyDividend> saveYearlyDividend(@GraphQLArgument(name = "dividendDto") DividendDto dividendDto) {
         return yearlyDividendService.saveYearlyDividend(dividendDto);
     }
@@ -43,7 +37,6 @@ public class YearlyDividendController {
         return yearlyDividendService.deleteYearlyDividend(id);
     }
 
-=======
     @GraphQLMutation(name = "approveDividend", description = "Approving yearly dividend for member")
     public Response<YearlyDividend> approveDividend(@GraphQLArgument(name = "yearlyDividendId") Long yearlyDividendId) {
         return yearlyDividendService.approveDividend(yearlyDividendId);
@@ -53,5 +46,4 @@ public class YearlyDividendController {
     public ResponsePage<YearlyDividend> getYearlyDividends(@GraphQLArgument(name = "pageableParam")PageableParam pageableParam){
         return yearlyDividendService.getYearlyDividends(pageableParam!=null?pageableParam:new PageableParam());
     }
->>>>>>> adfba08bff30ef050bb804bb0e2058353dd368bf
 }

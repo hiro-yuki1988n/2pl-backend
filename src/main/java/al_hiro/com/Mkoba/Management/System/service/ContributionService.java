@@ -244,7 +244,7 @@ public class ContributionService {
     }
 
     public Double getContributionTotalPenalties(Month month, Integer year) {
-        Double contributionTotalPenalties = contributionRepository.findContributionPenalties(month, year);
+        Double contributionTotalPenalties = contributionRepository.findContributionPenalties(month.getValue(), year);
         return contributionTotalPenalties != null ? contributionTotalPenalties : 0.0;
     }
 
