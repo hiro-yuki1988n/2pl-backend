@@ -26,7 +26,7 @@ public interface SocialFundRepository extends JpaRepository<SocialFund, Long> {
     @Query("SELECT SUM(sf.amount) FROM SocialFund sf WHERE sf.isActive=true AND sf.member.id=:memberId AND EXTRACT(YEAR FROM sf.createdAt) = :year")
     Double getTotalSocialFundsByMember(Long memberId, Integer year);
 
-    @Query("SELECT sf FROM SocialFund sf WHERE lower(concat(sf.id, sf.member.name)) like %:key% and sf.isActive=true")
+    @Query("SELECT sf FROM SocialFund sf WHERE lower(concat(sf.id, sf.member.name,sf.month)) like %:key% and sf.isActive=true")
     Page<SocialFund> findAllSocialFunds(Pageable pageable, String key);
 
     @Query("SELECT sf FROM SocialFund sf WHERE sf.isActive=true AND sf.member.id=:memberId AND EXTRACT(YEAR FROM sf.createdAt) = :year")

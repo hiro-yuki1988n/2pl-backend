@@ -13,6 +13,8 @@ import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 
+import java.time.Month;
+
 @Controller
 @RequiredArgsConstructor
 @GraphQLApi
@@ -45,5 +47,11 @@ public class YearlyDividendController {
     @GraphQLQuery(name = "getYearlyDividends", description = "Getting list of members' yearly dividends")
     public ResponsePage<YearlyDividend> getYearlyDividends(@GraphQLArgument(name = "pageableParam")PageableParam pageableParam){
         return yearlyDividendService.getYearlyDividends(pageableParam!=null?pageableParam:new PageableParam());
+    }
+
+    @GraphQLQuery(name = "getTotalDividends", description = "Getting Group's total dividends")
+    public Response<Double> getTotalDividends(@GraphQLArgument(name = "year") Integer year) {
+        Double totalDividends = yearlyDividendService.getTotalDividends(year);
+        return new Response<>(totalDividends);
     }
 }

@@ -22,8 +22,8 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("SELECT SUM(l.interestAmount) FROM Loan l WHERE l.isActive=true")
     Double findTotalLoansProfit();
 
-    @Query("SELECT SUM(l.penaltyAmount) FROM Loan l WHERE l.isPenaltyApplied = true AND l.isActive=true and MONTH(l.startDate) = :month and EXTRACT(YEAR FROM l.startDate) = :year")
-    Double findLoanPenalties(Month month, int year);
+    @Query("SELECT SUM(l.penaltyAmount) FROM Loan l WHERE l.isPenaltyApplied = true AND l.isActive=true AND MONTH(l.startDate) = :month AND EXTRACT(YEAR FROM l.startDate) = :year")
+    Double findLoanPenalties(int month, int year);
 
     @Query("SELECT SUM(l.interestAmount) FROM Loan l WHERE MONTH(l.startDate) = :month AND l.isActive=true and EXTRACT(YEAR FROM l.startDate) = :year")
     Double findLoansProfitByMonth(Integer month, int year);
@@ -36,13 +36,14 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
 
     @Query("SELECT SUM(l.payableAmount) FROM Loan l WHERE YEAR(l.startDate) = :year AND l.isActive=true")
     Double findTotalDebt(Integer year);
-
+//    SELECT SUM(c.penalty_amount) FROM contributions c WHERE c.is_active = true AND EXTRACT(MONTH FROM c.date_paid) = :monthValue and EXTRACT(YEAR FROM c.date_paid) = :year
+//    SUM(c.penaltyAmount) FROM Contribution c WHERE c.penaltyApplied = true AND c.isActive=true and c.month = :month AND c.year=:year
     @Query(value = """
     SELECT
         COALESCE((SELECT SUM(l.penalty) FROM loans l WHERE l.is_active = true AND EXTRACT(MONTH FROM l.start_date) = :monthValue and EXTRACT(YEAR FROM l.created_at) = :year), 0) +
-        COALESCE((SELECT SUM(c.penalty_amount) FROM contributions c WHERE c.is_active = true AND EXTRACT(MONTH FROM c.date_paid) = :monthValue and EXTRACT(YEAR FROM c.created_at) = :year), 0)
+        COALESCE((SELECT SUM(c.penalty_amount) FROM contributions c WHERE c.penalty_applied = true AND c.is_active=true and c.month = :month AND c.year=:year), 0)
     """, nativeQuery = true)
-    Double findTotalPenaltiesByMonth(Integer monthValue, int year);
+    Double findTotalPenaltiesByMonth(Integer monthValue, String month, int year);
 
     @Query("SELECT SUM(l.payableAmount) FROM Loan l WHERE l.isActive=true AND l.member.id=:memberId AND EXTRACT(YEAR FROM l.createdAt) = :year")
     Double getTotalLoansByMember(Long memberId, Integer year);

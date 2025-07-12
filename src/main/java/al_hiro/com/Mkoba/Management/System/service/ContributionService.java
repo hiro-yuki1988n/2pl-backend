@@ -3,6 +3,7 @@ package al_hiro.com.Mkoba.Management.System.service;
 import al_hiro.com.Mkoba.Management.System.dto.ContributionDto;
 import al_hiro.com.Mkoba.Management.System.entity.Contribution;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
+import al_hiro.com.Mkoba.Management.System.enums.ContributionCategory;
 import al_hiro.com.Mkoba.Management.System.repository.ContributionRepository;
 import al_hiro.com.Mkoba.Management.System.repository.MemberRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
@@ -63,66 +64,86 @@ public class ContributionService {
 
     public Response<Contribution> saveContribution(ContributionDto contributionDto) {
         log.info("Saving contribution");
+
         if (contributionDto == null)
             return Response.warning(null, "Contribution is required");
-
         if (contributionDto.getAmount() == null)
             return Response.warning(null, "Amount paid is required");
         if (contributionDto.getMonth() == null)
             return Response.warning(null, "Month paid for is required");
         if (contributionDto.getMemberId() == null)
             return Response.warning(null, "Member who paid is required");
-//        if (contributionDto.getPaymentDate() == null)
-//            return Response.warning(null, "Payment date is required");
+        if (contributionDto.getContributionCategory() == null)
+            return Response.warning(null, "Contribution category is required");
 
         Contribution contribution;
 
-        // Check if contribution for the member and month already exists
-        Optional<Contribution> existingContribution =
-                contributionRepository.findByMemberAndMonth(contributionDto.getMemberId(), contributionDto.getMonth());
+        // Fetch member
+        Optional<Member> optMember = memberRepository.findById(contributionDto.getMemberId());
+        if (optMember.isEmpty())
+            return Response.warning(null, "Member not found");
+        Member member = optMember.get();
 
-        if (existingContribution.isPresent()) {
-            contribution = existingContribution.get();
-            log.info("Updating existing contribution for member: " + contributionDto.getMemberId() + " and month: " + contributionDto.getMonth());
-            BigDecimal newAmount = contribution.getAmount().add(contributionDto.getAmount());
-            contribution.setAmount(newAmount);
-            contribution.setPaymentDate(LocalDateTime.now());
+        // If category is SHARE, check for existing record
+        if (contributionDto.getContributionCategory().equals(ContributionCategory.SHARE)) {
+            Optional<Contribution> existingContribution =
+                    contributionRepository.findByMemberAndMonthAndContributionCategory(
+                            contributionDto.getMemberId(),
+                            contributionDto.getMonth(),
+                            ContributionCategory.SHARE
+                    );
+
+            if (existingContribution.isPresent()) {
+                contribution = existingContribution.get();
+                log.info("Updating existing SHARE contribution");
+
+                BigDecimal newAmount = contribution.getAmount().add(contributionDto.getAmount());
+                contribution.setAmount(newAmount);
+                contribution.setPaymentDate(LocalDateTime.now());
+
+                // Update member shares
+                BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
+                member.setMemberShares(existingShares.add(contributionDto.getAmount()));
+                memberRepository.save(member);
+
+            } else {
+                // Create new SHARE contribution
+                contribution = new Contribution();
+                contribution.setAmount(contributionDto.getAmount());
+                contribution.setMonth(contributionDto.getMonth());
+                contribution.setYear(Year.now().getValue());
+                contribution.setMember(member);
+                contribution.setPaymentDate(LocalDateTime.now());
+                contribution.setContributionCategory(ContributionCategory.SHARE);
+
+                // Update member shares
+                BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
+                member.setMemberShares(existingShares.add(contributionDto.getAmount()));
+                memberRepository.save(member);
+            }
+
         } else {
-            log.info("Creating new contribution for member: " + contributionDto.getMemberId() + " and month: " + contributionDto.getMonth());
+            // ENTRY_FEE: always create new record, do NOT affect memberShares
+            log.info("Saving ENTRY_FEE contribution");
+
             contribution = new Contribution();
             contribution.setAmount(contributionDto.getAmount());
             contribution.setMonth(contributionDto.getMonth());
             contribution.setYear(Year.now().getValue());
-            contribution.setMember(Utils.entity(Member.class, contributionDto.getMemberId()));
+            contribution.setMember(member);
             contribution.setPaymentDate(LocalDateTime.now());
-            contribution.setContributionCategory(contributionDto.getContributionCategory());
+            contribution.setContributionCategory(ContributionCategory.ENTRY_FEE);
         }
 
-        Optional<Member> optMember = memberRepository.findById(contributionDto.getMemberId());
-        if (optMember.isPresent()) {
-            Member member = optMember.get();
-
-            BigDecimal existingMemberShares = member.getMemberShares();
-            if (existingMemberShares == null) {
-                existingMemberShares = BigDecimal.ZERO;
-            }
-
-            BigDecimal updatedMemberShares = existingMemberShares.add(contributionDto.getAmount());
-            member.setMemberShares(updatedMemberShares);
-            memberRepository.save(member);
-        }
-
-        // Check if payment was on time
+        // Penalty check
         if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
             contribution.setOnTime(false);
             contribution.setPenaltyApplied(true);
             BigDecimal memberPenaltyAmount = calculatePenalty(false, contribution.getAmount());
-//            BigDecimal memberPenaltyAmount = BigDecimal.valueOf(10000);
             contribution.setPenaltyAmount(memberPenaltyAmount);
 
-            List<Member> members = memberRepository.findAll(); // Fetch all group members
-
-            // Calculate total group savings using BigDecimal
+            // Distribute penalty among all members based on shares
+            List<Member> members = memberRepository.findAll();
             BigDecimal groupSavings = members.stream()
                     .map(Member::getMemberShares)
                     .filter(Objects::nonNull)
@@ -132,32 +153,20 @@ public class ContributionService {
                 return new Response<>("Total shares cannot be zero");
             }
 
-            for (Member member : members) {
-                BigDecimal memberShares = member.getMemberShares();
-                if (memberShares == null || memberShares.compareTo(BigDecimal.ZERO) < 0) {
-//                    return new Response<>("Member shares must be non-null and non-negative");
-                    memberShares = BigDecimal.ZERO;
-                }
-
-                // Calculate member's share percentage
-                BigDecimal memberSharePercentage = memberShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
-
-                // Calculate member's interest
-                BigDecimal memberInterest = memberPenaltyAmount.multiply(memberSharePercentage);
-
-                // Update member's shares
-                BigDecimal updatedShares = memberShares.add(memberInterest);
-                member.setMemberShares(updatedShares);
-                memberRepository.save(member); // Save updated member shares
+            for (Member m : members) {
+                BigDecimal mShares = m.getMemberShares() != null ? m.getMemberShares() : BigDecimal.ZERO;
+                BigDecimal percentage = mShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
+                BigDecimal interest = memberPenaltyAmount.multiply(percentage);
+                m.setMemberShares(mShares.add(interest));
+                memberRepository.save(m);
             }
-        }
-        if (isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
+        } else {
             contribution.setOnTime(true);
             contribution.setPenaltyApplied(false);
             contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
         }
 
-        // Save contribution to database
+        // Save final contribution
         try {
             contributionRepository.save(contribution);
             return new Response<>(contribution);
@@ -244,7 +253,7 @@ public class ContributionService {
     }
 
     public Double getContributionTotalPenalties(Month month, Integer year) {
-        Double contributionTotalPenalties = contributionRepository.findContributionPenalties(month.getValue(), year);
+        Double contributionTotalPenalties = contributionRepository.findContributionPenalties(month, year);
         return contributionTotalPenalties != null ? contributionTotalPenalties : 0.0;
     }
 
@@ -269,5 +278,10 @@ public class ContributionService {
             return new ResponsePage<>("Member not found");
         return new ResponsePage<>(contributionRepository.findAllByMember(pageableParam.getPageable(true),
                 pageableParam.getIsActive(), pageableParam.key(), id, year));
+    }
+
+    public Double getTotalEntryFees(ContributionCategory category) {
+        Double totalTotalEntryFees = contributionRepository.findTotalEntryFees(category);
+        return totalTotalEntryFees != null ? totalTotalEntryFees : 0.0;
     }
 }

@@ -2,6 +2,7 @@ package al_hiro.com.Mkoba.Management.System.controller;
 
 import al_hiro.com.Mkoba.Management.System.dto.ContributionDto;
 import al_hiro.com.Mkoba.Management.System.entity.Contribution;
+import al_hiro.com.Mkoba.Management.System.enums.ContributionCategory;
 import al_hiro.com.Mkoba.Management.System.service.ContributionService;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
@@ -85,5 +86,11 @@ public class ContributionController {
                                                                @GraphQLArgument(name = "memberId") Long id,
                                                                @GraphQLArgument(name = "year") Integer year) {
         return contributionService.getLateContributionsByMember(pageableParam != null ? pageableParam : new PageableParam(), id, year);
+    }
+
+    @GraphQLQuery(name = "getTotalEntryFees", description = "Getting entry fees contributions")
+    public Response<Double> getTotalEntryFees(@GraphQLArgument(name = "category") ContributionCategory category) {
+        Double totalTotalEntryFees = contributionService.getTotalEntryFees(category);
+        return new Response<>(totalTotalEntryFees);
     }
 }

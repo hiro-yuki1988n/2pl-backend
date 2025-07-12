@@ -3,6 +3,7 @@ package al_hiro.com.Mkoba.Management.System.configuration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,7 @@ public class SecurityConfig {
                 }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/gui/**", "/graphql/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/members/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -43,6 +45,34 @@ public class SecurityConfig {
 
         return http.build();
     }
+
+//    @Bean
+//    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+//        http.csrf().disable()
+//                .cors(cors -> cors.configurationSource(request -> {
+//                    CorsConfiguration configuration = new CorsConfiguration();
+//                    configuration.setAllowedOriginPatterns(List.of("*")); // Use this instead of setAllowedOrigins("*")
+//                    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+//                    configuration.setAllowedHeaders(List.of("*"));
+//                    configuration.setAllowCredentials(true);
+//                    return configuration;
+//                }))
+//                .authorizeHttpRequests(auth -> auth
+//                        .requestMatchers(
+//                                "/api/auth/login",
+//                                "/gui/**",
+//                                "/graphql",
+//                                "/graphql/**",
+//                                "/api/members/**",   // Ruhusu uploads na info za member
+//                                "/api/public/**"     // Ruhusu endpoints nyingine za wazi kama unazo
+//                        ).permitAll()
+//                        .anyRequest().authenticated()
+//                )
+//                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+//
+//        return http.build();
+//    }
 
     @Bean
     public AuthenticationManager authManager(HttpSecurity http) throws Exception {

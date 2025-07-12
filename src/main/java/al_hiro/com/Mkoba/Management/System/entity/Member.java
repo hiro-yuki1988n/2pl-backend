@@ -48,4 +48,7 @@ public class Member extends BaseEntity implements Serializable {
 
     @Column(name = "member_shares", precision = 10, scale = 2)
     private BigDecimal memberShares;
+
+    @Column(name = "passport_photo")
+    private String passportPhoto;
 }

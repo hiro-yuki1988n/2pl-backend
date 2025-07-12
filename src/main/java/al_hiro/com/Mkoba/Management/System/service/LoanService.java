@@ -255,7 +255,8 @@ public class LoanService {
     }
 
     public Double getLoanTotalPenalties(Month month, int year) {
-        Double loanTotalPenalties = loanRepository.findLoanPenalties(month, year);
+        int monthNumber = month.getValue(); // e.g. Month.JUNE -> 6
+        Double loanTotalPenalties = loanRepository.findLoanPenalties(monthNumber, year);
         return loanTotalPenalties != null ? loanTotalPenalties : 0.0;
     }
 
@@ -292,7 +293,8 @@ public class LoanService {
             month = LocalDateTime.now().getMonth();
         }
         int monthValue = month.getValue(); // Convert to 1-12
-        Double totalMonthlyPenalties = loanRepository.findTotalPenaltiesByMonth(monthValue, year);
+        String monthName = month.name();
+        Double totalMonthlyPenalties = loanRepository.findTotalPenaltiesByMonth(monthValue, monthName, year);
         return totalMonthlyPenalties != null ? totalMonthlyPenalties : 0.0;
     }
 

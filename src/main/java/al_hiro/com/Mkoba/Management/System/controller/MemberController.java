@@ -12,11 +12,15 @@ import io.leangen.graphql.annotations.GraphQLQuery;
 import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
 @Service
 @GraphQLApi
+@RestController
+@RequestMapping("/api/members")
 public class MemberController {
 
     @Autowired
@@ -58,5 +62,26 @@ public class MemberController {
     public Response<Double> getTotalMemberSharesByYear(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "year") Integer year) {
         Double memberSharesByYear = memberService.getTotalMemberSharesByYear(memberId, year);
         return new Response<>(memberSharesByYear);
+    }
+
+//    @GraphQLMutation(name = "uploadMemberPhoto", description = "Uploading member photo")
+//    public Response<Member> uploadMemberPhoto(@GraphQLArgument(name = "memberId") Long memberId, @GraphQLArgument(name = "file") MultipartFile file) {
+//        return memberService.uploadMemberPhoto(memberId, file);
+//    }
+
+//    @GraphQLMutation(name = "uploadMemberPhoto")
+//    public Response<Member> uploadMemberPhoto(@GraphQLArgument(name = "memberId") Long memberId, @RequestParam("file") MultipartFile file) {
+//        return memberService.uploadMemberPhoto(memberId, file);
+//    }
+
+    @PostMapping("/{id}/upload-photo")
+    public Response<String> uploadMemberPhoto(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        System.out.println("RECEIVED FILE for member id " + id + ": " + file.getOriginalFilename());
+        return memberService.uploadMemberPhoto(id, file);
+    }
+
+    @GraphQLQuery(name = "getMemberPhoto", description = "Getting member photo")
+    public Response<String> getMemberPhoto(@GraphQLArgument(name = "filename") String filename) {
+        return memberService.getMemberPhoto(filename);
     }
 }

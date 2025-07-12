@@ -1,4 +1,5 @@
 package al_hiro.com.Mkoba.Management.System.service;
+
 import al_hiro.com.Mkoba.Management.System.dto.DividendDto;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
 import al_hiro.com.Mkoba.Management.System.entity.YearlyDividend;
@@ -10,11 +11,8 @@ import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
 import al_hiro.com.Mkoba.Management.System.utils.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.java.Log;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import java.time.Month;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,6 +30,10 @@ public class YearlyDividendService {
 
     public Response<YearlyDividend> saveYearlyDividend(DividendDto dto) {
         log.info("User is saving yearly dividend for memberUid");
+
+        LocalDate now = LocalDate.now();
+        if (now.getMonth() != Month.DECEMBER)
+            return new Response<>("Withdrawals are only allowed in December.");
 
         // Validate input
         if (dto.getMemberId() == null) {
@@ -121,6 +123,10 @@ public class YearlyDividendService {
         return new ResponsePage<>(yearlyDividendRepository.findYearlyDividends(pageableParam.getPageable(true), pageableParam.key()));
     }
 
+    public Double getTotalDividends(Integer year) {
+        Double totalDividends = yearlyDividendRepository.getTotalDividends(year);
+        return totalDividends != null ? totalDividends : 0.0;
+    }
 }
 
 
