@@ -94,7 +94,7 @@ public class LoanService {
         loan.setUnpaidAmount(saveLoanDto.getAmount()+interestAmount);
         loan.setInterestAmount(interestAmount);
 
-        List<Member> members = memberRepository.findAll(); // Fetch all group members
+        List<Member> members = memberRepository.findAllAndActive(); // Fetch all group members
 
         // Calculate total group savings using BigDecimal
         BigDecimal groupSavings = members.stream()
@@ -335,7 +335,7 @@ public class LoanService {
 
         if (overdueLoans.isEmpty()) return;
 
-        List<Member> members = memberRepository.findAll();
+        List<Member> members = memberRepository.findAllAndActive();
         BigDecimal groupSavings = members.stream()
                 .map(Member::getMemberShares)
                 .filter(Objects::nonNull)

@@ -135,36 +135,36 @@ public class ContributionService {
             contribution.setContributionCategory(ContributionCategory.ENTRY_FEE);
         }
 
-        // Penalty check
-        if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
-            contribution.setOnTime(false);
-            contribution.setPenaltyApplied(true);
-            BigDecimal memberPenaltyAmount = calculatePenalty(false, contribution.getAmount());
-            contribution.setPenaltyAmount(memberPenaltyAmount);
-
-            // Distribute penalty among all members based on shares
-            List<Member> members = memberRepository.findAll();
-            BigDecimal groupSavings = members.stream()
-                    .map(Member::getMemberShares)
-                    .filter(Objects::nonNull)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
-                return new Response<>("Total shares cannot be zero");
-            }
-
-            for (Member m : members) {
-                BigDecimal mShares = m.getMemberShares() != null ? m.getMemberShares() : BigDecimal.ZERO;
-                BigDecimal percentage = mShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
-                BigDecimal interest = memberPenaltyAmount.multiply(percentage);
-                m.setMemberShares(mShares.add(interest));
-                memberRepository.save(m);
-            }
-        } else {
-            contribution.setOnTime(true);
-            contribution.setPenaltyApplied(false);
-            contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
-        }
+//        // Penalty check
+//        if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
+//            contribution.setOnTime(false);
+//            contribution.setPenaltyApplied(true);
+//            BigDecimal memberPenaltyAmount = calculatePenalty(false, contribution.getAmount());
+//            contribution.setPenaltyAmount(memberPenaltyAmount);
+//
+//            // Distribute penalty among all members based on shares
+//            List<Member> members = memberRepository.findAllAndActive();
+//            BigDecimal groupSavings = members.stream()
+//                    .map(Member::getMemberShares)
+//                    .filter(Objects::nonNull)
+//                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+//
+//            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
+//                return new Response<>("Total shares cannot be zero");
+//            }
+//
+//            for (Member m : members) {
+//                BigDecimal mShares = m.getMemberShares() != null ? m.getMemberShares() : BigDecimal.ZERO;
+//                BigDecimal percentage = mShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
+//                BigDecimal interest = memberPenaltyAmount.multiply(percentage);
+//                m.setMemberShares(mShares.add(interest));
+//                memberRepository.save(m);
+//            }
+//        } else {
+//            contribution.setOnTime(true);
+//            contribution.setPenaltyApplied(false);
+//            contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
+//        }
 
         // Save final contribution
         try {

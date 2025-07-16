@@ -6,7 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.math.BigDecimal;
 import java.time.Month;
+import java.util.List;
 import java.util.Optional;
 
 public interface SocialFundRepository extends JpaRepository<SocialFund, Long> {
@@ -31,4 +33,10 @@ public interface SocialFundRepository extends JpaRepository<SocialFund, Long> {
 
     @Query("SELECT sf FROM SocialFund sf WHERE sf.isActive=true AND sf.member.id=:memberId AND EXTRACT(YEAR FROM sf.createdAt) = :year")
     Page<SocialFund> getSocialFundsByMember(Pageable pageable, Long memberId, Integer year);
+
+    @Query("SELECT SUM(sf.amount) FROM SocialFund sf WHERE sf.member.id=:id")
+    BigDecimal getSocialFunds(Long id);
+
+    @Query("SELECT sf FROM SocialFund sf WHERE sf.isActive=true AND sf.member.id=:memberId")
+    List<SocialFund> findMemberSocialFunds(Long memberId);
 }

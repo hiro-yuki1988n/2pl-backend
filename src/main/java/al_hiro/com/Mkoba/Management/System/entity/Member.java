@@ -1,6 +1,7 @@
 package al_hiro.com.Mkoba.Management.System.entity;
 
 import al_hiro.com.Mkoba.Management.System.enums.MemberRole;
+import al_hiro.com.Mkoba.Management.System.enums.RemoveReason;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +10,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -51,4 +53,11 @@ public class Member extends BaseEntity implements Serializable {
 
     @Column(name = "passport_photo")
     private String passportPhoto;
+
+    private Boolean removed=false;
+
+    private LocalDate removedAt;
+
+    @Enumerated(EnumType.STRING)
+    private RemoveReason removeReason;
 }

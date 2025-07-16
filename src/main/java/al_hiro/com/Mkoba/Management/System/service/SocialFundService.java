@@ -4,6 +4,7 @@ import al_hiro.com.Mkoba.Management.System.dto.SocialFundDto;
 import al_hiro.com.Mkoba.Management.System.entity.Contribution;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
 import al_hiro.com.Mkoba.Management.System.entity.SocialFund;
+import al_hiro.com.Mkoba.Management.System.repository.CommonFundRepository;
 import al_hiro.com.Mkoba.Management.System.repository.ExpendituresRepository;
 import al_hiro.com.Mkoba.Management.System.repository.SocialFundRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
@@ -25,6 +26,7 @@ import java.util.Optional;
 @Log
 @RequiredArgsConstructor
 public class SocialFundService {
+    private final CommonFundRepository commonFundRepository;
 
     private final SocialFundRepository socialFundRepository;
     private final ExpendituresRepository expendituresRepository;
@@ -57,6 +59,7 @@ public class SocialFundService {
         if (socialFundDto.getMemberId() == null)
             return Response.warning(null, "Member who paid is required");
 
+
         socialFund.setAmount(socialFundDto.getAmount());
         socialFund.setMonth(Month.valueOf(socialFundDto.getMonth()));
         socialFund.setMember(Utils.entity(Member.class, socialFundDto.getMemberId()));
@@ -85,9 +88,17 @@ public class SocialFundService {
 
     public Double getTotalSocialFunds() {
         log.info("Getting Group's total social fund");
-        Double totalSocialFunds = socialFundRepository.getTotalSocialFunds();
-//        Double socialExpense = expendituresRepository.getSocialExpenses();
-        return totalSocialFunds != null ? totalSocialFunds : 0.0;
+
+        Double leftOverFunds = commonFundRepository.findLeftOverFunds();
+        Double socialExpense = expendituresRepository.getSocialExpenses();
+        Double totalSocial = socialFundRepository.getTotalSocialFunds();
+
+        // Default to 0.0 if any are null
+        leftOverFunds = leftOverFunds != null ? leftOverFunds : 0.0;
+        socialExpense = socialExpense != null ? socialExpense : 0.0;
+        totalSocial = totalSocial != null ? totalSocial : 0.0;
+
+        return (leftOverFunds + totalSocial) - socialExpense;
     }
 
     public Double getTotalSocialFundsByMonth(String month) {

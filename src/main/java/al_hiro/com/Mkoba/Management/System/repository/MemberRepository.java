@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
@@ -23,4 +24,13 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Double getTotalMemberSharesByYear(Long memberId,Integer year);
 
     Optional<Member> findById(Long memberId);
+
+    @Query("SELECT m FROM Member m WHERE m.isActive=true")
+    List<Member> findAllAndActive();
+
+    @Query("SELECT m FROM Member m WHERE m.isActive=false and m.removed=true")
+    Page<Member> getPastMembers(Pageable pageable, String key);
+
+    @Query("SELECT count(m) FROM Member m WHERE m.isActive=true")
+    Integer getTotalActiveMembers();
 }

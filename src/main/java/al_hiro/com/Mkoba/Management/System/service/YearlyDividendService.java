@@ -127,6 +127,39 @@ public class YearlyDividendService {
         Double totalDividends = yearlyDividendRepository.getTotalDividends(year);
         return totalDividends != null ? totalDividends : 0.0;
     }
+
+    public Response<YearlyDividend> saveYearlyDividend(Long memberId, BigDecimal withdrawnAmount) {
+        log.info("Saving yearly dividend for member ID: " + memberId);
+
+        if (memberId == null) {
+            return new Response<>("Member ID is required");
+        }
+
+        Optional<Member> optionalMember = memberRepository.findById(memberId);
+        if (optionalMember.isEmpty()) {
+            return new Response<>("Member not found");
+        }
+
+        Member member = optionalMember.get();
+
+        BigDecimal memberShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
+
+//        if (withdrawnAmount.compareTo(memberShares) > 0) {
+//            return new Response<>("Withdrawn amount cannot exceed allocated amount");
+//        }
+
+        YearlyDividend dividend = new YearlyDividend();
+        dividend.setMember(member);
+        dividend.setYear(LocalDateTime.now().getYear());
+        dividend.setAllocatedAmount(withdrawnAmount);
+        dividend.setWithdrawnAmount(withdrawnAmount);
+
+        YearlyDividend saved = yearlyDividendRepository.save(dividend);
+        log.info("Yearly Dividend saved with ID: " + saved.getId());
+
+        return new Response<>(saved);
+    }
+
 }
 
 

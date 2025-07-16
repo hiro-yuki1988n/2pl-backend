@@ -1,11 +1,15 @@
 package al_hiro.com.Mkoba.Management.System.service;
 
 import al_hiro.com.Mkoba.Management.System.dto.MemberDto;
+import al_hiro.com.Mkoba.Management.System.dto.RemoveMemberDto;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
+import al_hiro.com.Mkoba.Management.System.entity.SocialFund;
 import al_hiro.com.Mkoba.Management.System.enums.ContributionCategory;
+import al_hiro.com.Mkoba.Management.System.enums.RemoveReason;
 import al_hiro.com.Mkoba.Management.System.repository.ContributionRepository;
 import al_hiro.com.Mkoba.Management.System.repository.ExpendituresRepository;
 import al_hiro.com.Mkoba.Management.System.repository.MemberRepository;
+import al_hiro.com.Mkoba.Management.System.repository.SocialFundRepository;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
 import al_hiro.com.Mkoba.Management.System.utils.Response;
 import al_hiro.com.Mkoba.Management.System.utils.ResponsePage;
@@ -20,20 +24,20 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Year;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Log
 @RequiredArgsConstructor
 public class MemberService {
+    private final SocialFundRepository socialFundRepository;
     private final ContributionRepository contributionRepository;
 
     private final ExpendituresRepository expendituresRepository;
@@ -46,29 +50,33 @@ public class MemberService {
 
     private final ContributionService contributionService;
 
+    private final YearlyDividendService yearlyDividendService;
+
+    private final CommonFundService commonFundService;
+
     public Response<Member> saveMkobaMember(MemberDto memberDto) {
-        if(memberDto == null)
+        if (memberDto == null)
             return new Response<>("Data is required");
         Optional<Member> existingMember = memberRepository.findMemberByEmail(memberDto.getEmail());
-        if(existingMember.isPresent() && !existingMember.get().getId().equals(memberDto.getId()))
+        if (existingMember.isPresent() && !existingMember.get().getId().equals(memberDto.getId()))
             return new Response<>("Email already exists");
 
         Member member;
-        if(memberDto.getId()!=null){
+        if (memberDto.getId() != null) {
             Optional<Member> optionalMember = memberRepository.findById(memberDto.getId());
-            if(optionalMember.isEmpty())
+            if (optionalMember.isEmpty())
                 return new Response<>("Mkoba member not found");
             member = optionalMember.get();
             member.update();
         } else member = new Member();
 
-        if(memberDto.getName().isEmpty())
+        if (memberDto.getName().isEmpty())
             return new Response<>("Name is required");
-        if(memberDto.getEmail().isEmpty())
+        if (memberDto.getEmail().isEmpty())
             return new Response<>("Email is required");
-        if(memberDto.getPhone().isEmpty())
+        if (memberDto.getPhone().isEmpty())
             return new Response<>("Phone is required");
-        if(memberDto.getMemberRole() == null)
+        if (memberDto.getMemberRole() == null)
             return new Response<>("Member role is required");
 
         member.setName(memberDto.getName());
@@ -80,14 +88,14 @@ public class MemberService {
         try {
             memberRepository.save(member);
             return new Response<>(member);
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             String msg = Utils.getExceptionMessage(e);
-            if(msg.contains("name"))
+            if (msg.contains("name"))
                 return new Response<>("Duplicate name");
-            if(msg.contains("email"))
+            if (msg.contains("email"))
                 return new Response<>("Duplicate email");
-            if(msg.contains("phone"))
+            if (msg.contains("phone"))
                 return new Response<>("Duplicate phone");
             return new Response<>("Could not save Mkoba member");
         }
@@ -98,19 +106,19 @@ public class MemberService {
     }
 
     public Response<Member> getMkobaMemberById(Long id) {
-        if(id == null)
+        if (id == null)
             return new Response<>("Member identity required");
         Optional<Member> optionalMember = memberRepository.findById(id);
-        if(optionalMember.isEmpty())
+        if (optionalMember.isEmpty())
             return new Response<>("Mkoba member not found");
         return new Response<>(optionalMember.get());
     }
 
     public Response<Member> deleteMkobaMember(Long id) {
-        if(id == null)
+        if (id == null)
             return new Response<>("Member identity required");
         Optional<Member> optionalMember = memberRepository.findById(id);
-        if(optionalMember.isEmpty())
+        if (optionalMember.isEmpty())
             return new Response<>("Mkoba member not found");
         Member member = optionalMember.get();
         try {
@@ -129,12 +137,12 @@ public class MemberService {
         Double socialFund = socialFundService.getTotalSocialFunds();
         Double entryFees = contributionService.getTotalEntryFees(ContributionCategory.ENTRY_FEE);
         Double groupExpenditures = expendituresService.calculateTotalExpenditures();
-        Double groupSavings = (memberShares + socialFund + entryFees)-groupExpenditures;
-        return  groupSavings!=null ? groupSavings:0.0;
+        Double groupSavings = (memberShares + socialFund + entryFees) - groupExpenditures;
+        return groupSavings != null ? groupSavings : 0.0;
     }
 
     public Integer getTotalNumberOfMembers() {
-        return (int) memberRepository.count();
+        return (int) memberRepository.getTotalActiveMembers();
     }
 
     public Double getTotalMemberSharesByYear(Long memberId, Integer year) {
@@ -209,4 +217,99 @@ public class MemberService {
         }
     }
 
+    public Response<Member> removeMember(RemoveMemberDto dto) {
+        log.info("Removing member");
+
+        if (dto == null || dto.getMemberId() == null) {
+            return new Response<>("Member identity required");
+        }
+
+        Optional<Member> optionalMember = memberRepository.findById(dto.getMemberId());
+        if (optionalMember.isEmpty()) {
+            return new Response<>("Mkoba member not found");
+        }
+
+        Member member = optionalMember.get();
+        member.setRemoved(true);
+        member.setIsActive(false);
+        member.setIsDeleted(true);
+        member.setRemovedAt(LocalDate.now());
+        member.setRemoveReason(dto.getRemoveReason());
+
+        try {
+            member = memberRepository.save(member);
+
+            if (Boolean.TRUE.equals(member.getRemoved())) {
+                BigDecimal shares = defaultToZero(member.getMemberShares());
+                BigDecimal socialFunds = defaultToZero(socialFundRepository.getSocialFunds(member.getId()));
+
+                BigDecimal memberTakeAway;
+                BigDecimal leftOverShares = BigDecimal.ZERO;
+                BigDecimal leftOverSocial = BigDecimal.ZERO;
+
+                if (dto.getRemoveReason() == RemoveReason.death) {
+                    memberTakeAway = shares.add(socialFunds);
+                } else {
+                    memberTakeAway = shares.add(socialFunds).multiply(BigDecimal.valueOf(0.5));
+                    leftOverShares = shares.multiply(BigDecimal.valueOf(0.5));
+                    leftOverSocial = socialFunds.multiply(BigDecimal.valueOf(0.5));
+                }
+
+                yearlyDividendService.saveYearlyDividend(member.getId(), memberTakeAway);
+
+                if (leftOverShares.compareTo(BigDecimal.ZERO) > 0) {
+                    commonFundService.generateCommonFund(leftOverShares);
+                }
+
+                if (leftOverSocial.compareTo(BigDecimal.ZERO) > 0) {
+                    commonFundService.generateSocialFund(leftOverSocial);
+                }
+
+                List<SocialFund> memberSocialFunds = socialFundRepository.findMemberSocialFunds(dto.getMemberId());
+                for (SocialFund funds : memberSocialFunds) {
+                    funds.setIsActive(false);
+                }
+                socialFundRepository.saveAll(memberSocialFunds);
+            }
+
+            return new Response<>(member);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.error(Utils.getExceptionMessage(e));
+        }
+    }
+
+    private BigDecimal defaultToZero(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    public ResponsePage<Member> getPastMembers(PageableParam pageableParam) {
+        log.info("Getting past members");
+        return new ResponsePage<>(memberRepository.getPastMembers(pageableParam.getPageable(true), pageableParam.key()));
+    }
+
+    public Response<Member> restoreMember(Long id) {
+        log.info("Restoring member");
+        if (id == null)
+            return new Response<>("Member identity required");
+
+        Optional<Member> optionalMember = memberRepository.findById(id);
+        if (optionalMember.isEmpty())
+            return new Response<>("Mkoba member not found");
+
+        Member member = optionalMember.get();
+        member.setRemoved(false);
+        member.setIsActive(true);
+        member.setIsDeleted(false);
+        member.setRemovedAt(null);
+        member.setRemoveReason(null);
+
+        try {
+            member = memberRepository.save(member);
+            return new Response<>(member);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return Response.error(Utils.getExceptionMessage(e));
+        }
+    }
 }

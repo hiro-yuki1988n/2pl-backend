@@ -15,4 +15,7 @@ public interface ExpendituresRepository extends JpaRepository<Expenditures,Long>
 
     @Query("SELECT SUM(xp.amount) FROM Expenditures xp WHERE xp.isActive=true and xp.approved=true ")
     Double calculateTotalExpenditures();
+
+    @Query("SELECT SUM(xp.amount) FROM Expenditures xp WHERE xp.isActive=true and xp.approved=true and xp.expenseType='SOCIAL_EXPENSE'")
+    Double getSocialExpenses();
 }

@@ -1,6 +1,7 @@
 package al_hiro.com.Mkoba.Management.System.controller;
 
 import al_hiro.com.Mkoba.Management.System.dto.MemberDto;
+import al_hiro.com.Mkoba.Management.System.dto.RemoveMemberDto;
 import al_hiro.com.Mkoba.Management.System.entity.Member;
 import al_hiro.com.Mkoba.Management.System.service.MemberService;
 import al_hiro.com.Mkoba.Management.System.utils.PageableParam;
@@ -83,5 +84,20 @@ public class MemberController {
     @GraphQLQuery(name = "getMemberPhoto", description = "Getting member photo")
     public Response<String> getMemberPhoto(@GraphQLArgument(name = "filename") String filename) {
         return memberService.getMemberPhoto(filename);
+    }
+
+    @GraphQLMutation(name = "removeMember", description = "Removing a member")
+    public Response<Member> removeMember(@GraphQLArgument(name = "removeMemberDto") RemoveMemberDto removeMemberDto) {
+        return memberService.removeMember(removeMemberDto);
+    }
+
+    @GraphQLQuery(name = "getPastMembers", description = "Getting past members")
+    public ResponsePage<Member> getPastMembers(@GraphQLArgument(name = "pageableParam") PageableParam pageableParam) {
+        return memberService.getPastMembers(pageableParam!=null?pageableParam:new PageableParam());
+    }
+
+    @GraphQLMutation(name = "restoreMember", description = "Restoring a member member by id")
+    public Response<Member> restoreMember(@GraphQLArgument(name = "id") Long id) {
+        return memberService.restoreMember(id);
     }
 }
