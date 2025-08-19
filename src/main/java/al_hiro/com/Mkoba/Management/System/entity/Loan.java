@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Data
 @AllArgsConstructor
@@ -49,11 +50,15 @@ public class Loan extends BaseEntity{
     @Column(name = "unpaid_amount")
     private Double unpaidAmount;
 
+    private LocalDate unpaidAmountDueDate;
+
     public double calculatePenalty() {
-        if (!isPaid && LocalDate.now().isAfter(dueDate) && !isPenaltyApplied) {
+        if (!isPaid && LocalDate.now().isAfter(dueDate) && !isPenaltyApplied && Objects.equals(payableAmount, unpaidAmount)) {
             isPenaltyApplied = true;
             return amount * 0.10; // 10% penalty
+        } else {
+            return unpaidAmount * 0.10;
         }
-        return 0.0;
+//        return 0.0;
     }
 }

@@ -284,4 +284,17 @@ public class ContributionService {
         Double totalTotalEntryFees = contributionRepository.findTotalEntryFees(category);
         return totalTotalEntryFees != null ? totalTotalEntryFees : 0.0;
     }
+
+    public Response<Contribution> insertEntryFeeContributions(BigDecimal amount, Integer year, String month) {
+        log.info("Inserting entry fee contributions");
+        try {
+            if (amount == null || year == null || month == null)
+                return Response.warning(null, "Amount, year, and month are required");
+            contributionRepository.insertEntryFeeContributions(amount, year, month);
+        } catch (Exception e){
+            e.printStackTrace();
+            return Response.error("Could not insert entry fee contributions");
+        }
+        return Response.success(null);
+    }
 }

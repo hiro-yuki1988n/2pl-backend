@@ -111,6 +111,12 @@ public class ExpendituresService {
         Double totalExpenses = expendituresRepository.calculateTotalExpenditures();
         return totalExpenses != null ? totalExpenses : 0.0;
     }
+
+    public Double getGroupExpenditures() {
+        log.info("Getting Group's total expenditures");
+        Double totalExpenses = expendituresRepository.calculateGroupExpenditures();
+        return totalExpenses != null ? totalExpenses : 0.0;
+    }
 }
 
 

@@ -14,6 +14,7 @@ import io.leangen.graphql.spqr.spring.annotations.GraphQLApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 
+import java.math.BigDecimal;
 import java.time.Month;
 
 @Controller
@@ -92,5 +93,12 @@ public class ContributionController {
     public Response<Double> getTotalEntryFees(@GraphQLArgument(name = "category") ContributionCategory category) {
         Double totalTotalEntryFees = contributionService.getTotalEntryFees(category);
         return new Response<>(totalTotalEntryFees);
+    }
+
+    @GraphQLMutation(name = "insertEntryFeeContributions", description = "Insert entry fee contributions")
+    public Response<Contribution> insertEntryFeeContributions(@GraphQLArgument(name = "amount")BigDecimal amount,
+                                                              @GraphQLArgument(name = "year") Integer year,
+                                                              @GraphQLArgument(name = "month") String month) {
+        return contributionService.insertEntryFeeContributions(amount, year, month);
     }
 }

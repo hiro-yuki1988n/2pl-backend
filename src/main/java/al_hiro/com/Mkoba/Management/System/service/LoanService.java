@@ -215,6 +215,23 @@ public class LoanService {
             existingLoan.setUnpaidAmount(0.0);
         } else {
             existingLoan.setUnpaidAmount(remainingAmount);
+            if (LocalDate.now().isBefore(existingLoan.getDueDate()))
+                return new Response<>("The loan still on time");
+            if (LocalDate.now().isAfter(existingLoan.getDueDate()) && Boolean.TRUE.equals(existingLoan.getIsPenaltyApplied())) {
+//                Double remainingAmount = existingLoan.ge; // Hakikisha ni long au int
+
+                if (remainingAmount >= 1 && remainingAmount <= 1_000_000) {
+                    existingLoan.setUnpaidAmountDueDate(LocalDate.now().plusDays(30));
+                } else if (remainingAmount >= 1_000_001 && remainingAmount <= 20_000_000) {
+                    existingLoan.setUnpaidAmountDueDate(LocalDate.now().plusDays(60));
+                } else if (remainingAmount >= 20_000_001 && remainingAmount <= 30_000_000) {
+                    existingLoan.setUnpaidAmountDueDate(LocalDate.now().plusDays(90));
+                } else if (remainingAmount >= 30_000_001 && remainingAmount <= 40_000_000) {
+                    existingLoan.setUnpaidAmountDueDate(LocalDate.now().plusDays(120));
+                } else if (remainingAmount >= 40_000_001 && remainingAmount <= 50_000_000) {
+                    existingLoan.setUnpaidAmountDueDate(LocalDate.now().plusDays(150));
+                }
+            }
         }
         try {
             loanPaymentRepository.save(loanPayment);

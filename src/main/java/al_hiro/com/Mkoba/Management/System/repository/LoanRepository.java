@@ -34,7 +34,7 @@ public interface LoanRepository extends JpaRepository<Loan, Long> {
     @Query("SELECT SUM(l.penaltyAmount) FROM Loan l WHERE MONTH(l.startDate) = :month AND l.isActive=true")
     Double findCurrentMonthLoanPenalties(Month month);
 
-    @Query("SELECT SUM(l.payableAmount) FROM Loan l WHERE YEAR(l.startDate) = :year AND l.isActive=true")
+    @Query("SELECT SUM(l.unpaidAmount) FROM Loan l WHERE YEAR(l.startDate) = :year AND l.isActive=true")
     Double findTotalDebt(Integer year);
 //    SELECT SUM(c.penalty_amount) FROM contributions c WHERE c.is_active = true AND EXTRACT(MONTH FROM c.date_paid) = :monthValue and EXTRACT(YEAR FROM c.date_paid) = :year
 //    SUM(c.penaltyAmount) FROM Contribution c WHERE c.penaltyApplied = true AND c.isActive=true and c.month = :month AND c.year=:year

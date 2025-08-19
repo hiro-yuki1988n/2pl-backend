@@ -136,7 +136,7 @@ public class MemberService {
         Double memberShares = memberRepository.getGroupSavings();
         Double socialFund = socialFundService.getTotalSocialFunds();
         Double entryFees = contributionService.getTotalEntryFees(ContributionCategory.ENTRY_FEE);
-        Double groupExpenditures = expendituresService.calculateTotalExpenditures();
+        Double groupExpenditures = expendituresService.getGroupExpenditures();
         Double groupSavings = (memberShares + socialFund + entryFees) - groupExpenditures;
         return groupSavings != null ? groupSavings : 0.0;
     }
