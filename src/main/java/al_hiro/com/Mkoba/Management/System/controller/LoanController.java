@@ -113,7 +113,7 @@ public class LoanController {
         return new Response<>(totalMonthlyLoans);
     }
 
-    @GraphQLQuery(name = "getGroupTotalPenalties", description = "Getting Group's profit from all penalties")
+    @GraphQLQuery(name = "getGroupTotalPenalties", description = "Getting Group's earnings from all penalties")
     public Response<Double> getGroupTotalPenalties(@GraphQLArgument(name = "month") Month month, @GraphQLArgument(name = "year") Integer year) {
         Double totalPenalties = loanService.getGroupTotalPenalties(month, year);
         return new Response<>(totalPenalties);
