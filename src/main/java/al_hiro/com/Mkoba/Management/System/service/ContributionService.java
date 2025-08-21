@@ -62,125 +62,147 @@ public class ContributionService {
         return BigDecimal.ZERO;
     }
 
-    public Response<Contribution> saveContribution(ContributionDto contributionDto) {
+    public Response<Contribution> saveContribution(ContributionDto dto) {
         log.info("Saving contribution");
 
-        if (contributionDto == null)
-            return Response.warning(null, "Contribution is required");
-        if (contributionDto.getAmount() == null)
-            return Response.warning(null, "Amount paid is required");
-        if (contributionDto.getMonth() == null)
-            return Response.warning(null, "Month paid for is required");
-        if (contributionDto.getMemberId() == null)
-            return Response.warning(null, "Member who paid is required");
-        if (contributionDto.getContributionCategory() == null)
-            return Response.warning(null, "Contribution category is required");
+        //Validate input
+        String validationError = validateContributionDto(dto);
+        if (validationError != null) {
+            return Response.warning(null, validationError);
+        }
 
         Contribution contribution;
 
-        // Fetch member
-        Optional<Member> optMember = memberRepository.findById(contributionDto.getMemberId());
-        if (optMember.isEmpty())
+        //Fetch member
+        Member member = memberRepository.findById(dto.getMemberId()).orElse(null);
+        if (member == null) {
             return Response.warning(null, "Member not found");
-        Member member = optMember.get();
-
-        // If category is SHARE, check for existing record
-        if (contributionDto.getContributionCategory().equals(ContributionCategory.SHARE)) {
-            Optional<Contribution> existingContribution =
-                    contributionRepository.findByMemberAndMonthAndContributionCategory(
-                            contributionDto.getMemberId(),
-                            contributionDto.getMonth(),
-                            ContributionCategory.SHARE
-                    );
-
-            if (existingContribution.isPresent()) {
-                contribution = existingContribution.get();
-                log.info("Updating existing SHARE contribution");
-
-                BigDecimal newAmount = contribution.getAmount().add(contributionDto.getAmount());
-                contribution.setAmount(newAmount);
-                contribution.setPaymentDate(LocalDateTime.now());
-
-                // Update member shares
-                BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
-                member.setMemberShares(existingShares.add(contributionDto.getAmount()));
-                memberRepository.save(member);
-
-            } else {
-                // Create new SHARE contribution
-                contribution = new Contribution();
-                contribution.setAmount(contributionDto.getAmount());
-                contribution.setMonth(contributionDto.getMonth());
-                contribution.setYear(Year.now().getValue());
-                contribution.setMember(member);
-                contribution.setPaymentDate(LocalDateTime.now());
-                contribution.setContributionCategory(ContributionCategory.SHARE);
-
-                // Update member shares
-                BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
-                member.setMemberShares(existingShares.add(contributionDto.getAmount()));
-                memberRepository.save(member);
-            }
-
-        } else {
-            // ENTRY_FEE: always create new record, do NOT affect memberShares
-            log.info("Saving ENTRY_FEE contribution");
-
-            contribution = new Contribution();
-            contribution.setAmount(contributionDto.getAmount());
-            contribution.setMonth(contributionDto.getMonth());
-            contribution.setYear(Year.now().getValue());
-            contribution.setMember(member);
-            contribution.setPaymentDate(LocalDateTime.now());
-            contribution.setContributionCategory(ContributionCategory.ENTRY_FEE);
         }
 
-//        // Penalty check
-//        if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
-//            contribution.setOnTime(false);
-//            contribution.setPenaltyApplied(true);
-//            BigDecimal memberPenaltyAmount = calculatePenalty(false, contribution.getAmount());
-//            contribution.setPenaltyAmount(memberPenaltyAmount);
-//
-//            // Distribute penalty among all members based on shares
-//            List<Member> members = memberRepository.findAllAndActive();
-//            BigDecimal groupSavings = members.stream()
-//                    .map(Member::getMemberShares)
-//                    .filter(Objects::nonNull)
-//                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-//
-//            if (groupSavings.compareTo(BigDecimal.ZERO) == 0) {
-//                return new Response<>("Total shares cannot be zero");
-//            }
-//
-//            for (Member m : members) {
-//                BigDecimal mShares = m.getMemberShares() != null ? m.getMemberShares() : BigDecimal.ZERO;
-//                BigDecimal percentage = mShares.divide(groupSavings, 4, RoundingMode.HALF_UP);
-//                BigDecimal interest = memberPenaltyAmount.multiply(percentage);
-//                m.setMemberShares(mShares.add(interest));
-//                memberRepository.save(m);
-//            }
-//        } else {
-//            contribution.setOnTime(true);
-//            contribution.setPenaltyApplied(false);
-//            contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
-//        }
+        //Handle contributions by category
+        switch (dto.getContributionCategory()) {
+            case SHARE:
+                contribution = handleShareContribution(dto, member);
+                break;
+            case ENTRY_FEE:
+                contribution = handleEntryFeeContribution(dto, member);
+                break;
+            default:
+                return Response.warning(null, "Unsupported contribution category");
+        }
 
-        // Save final contribution
+        //Handle penalty
+        applyPenaltyIfRequired(contribution, member);
+
+        //Save final contribution
         try {
             contributionRepository.save(contribution);
             return new Response<>(contribution);
         } catch (Exception e) {
             e.printStackTrace();
-            String message = Utils.getExceptionMessage(e);
-            if (message.contains("month"))
-                return new Response<>("Invalid Month");
-            if (message.contains("(memberId)"))
-                return new Response<>("Invalid Member");
-            if (message.contains("amount"))
-                return new Response<>("Invalid Amount");
-            return new Response<>("Could not save monthly Contribution for a member");
+            log.info("Error saving contribution" + e);
+            return handleSaveException(e);
         }
+    }
+
+    private String validateContributionDto(ContributionDto dto) {
+        if (dto == null) return "Contribution is required";
+        if (dto.getAmount() == null) return "Amount paid is required";
+        if (dto.getMonth() == null) return "Month paid for is required";
+        if (dto.getMemberId() == null) return "Member who paid is required";
+        if (dto.getContributionCategory() == null) return "Contribution category is required";
+        return null;
+    }
+
+    private Contribution handleShareContribution(ContributionDto dto, Member member) {
+        Optional<Contribution> existingContribution =
+                contributionRepository.findByMemberAndMonthAndContributionCategory(
+                        dto.getMemberId(), dto.getMonth(), ContributionCategory.SHARE);
+
+        Contribution contribution;
+
+        if (existingContribution.isPresent()) {
+            log.info("Updating existing SHARE contribution");
+            contribution = existingContribution.get();
+            contribution.setAmount(contribution.getAmount().add(dto.getAmount()));
+        } else {
+            log.info("Creating new SHARE contribution");
+            contribution = new Contribution();
+            contribution.setAmount(dto.getAmount());
+            contribution.setMonth(dto.getMonth());
+            contribution.setYear(Year.now().getValue());
+            contribution.setMember(member);
+            contribution.setContributionCategory(ContributionCategory.SHARE);
+        }
+
+        contribution.setPaymentDate(LocalDateTime.now());
+
+        // Update member shares
+        BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
+        member.setMemberShares(existingShares.add(dto.getAmount()));
+        memberRepository.save(member);
+
+        return contribution;
+    }
+
+    private Contribution handleEntryFeeContribution(ContributionDto dto, Member member) {
+        log.info("Saving ENTRY_FEE contribution");
+        Contribution contribution = new Contribution();
+        contribution.setAmount(dto.getAmount());
+        contribution.setMonth(dto.getMonth());
+        contribution.setYear(Year.now().getValue());
+        contribution.setMember(member);
+        contribution.setPaymentDate(LocalDateTime.now());
+        contribution.setContributionCategory(ContributionCategory.ENTRY_FEE);
+        return contribution;
+    }
+
+    private void applyPenaltyIfRequired(Contribution contribution, Member member) {
+        if (!isOnTime(contribution.getPaymentDate(), contribution.getMonth())) {
+            contribution.setOnTime(false);
+            contribution.setPenaltyApplied(true);
+
+            BigDecimal penalty = calculatePenalty(false, contribution.getAmount());
+            contribution.setPenaltyAmount(penalty);
+
+            distributePenaltyAmongMembers(penalty);
+        } else {
+            contribution.setOnTime(true);
+            contribution.setPenaltyApplied(false);
+            contribution.setPenaltyAmount(calculatePenalty(true, contribution.getAmount()));
+        }
+    }
+
+    private void distributePenaltyAmongMembers(BigDecimal penaltyAmount) {
+        List<Member> members = memberRepository.findAllAndActive();
+
+        BigDecimal totalShares = members.stream()
+                .map(Member::getMemberShares)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalShares.compareTo(BigDecimal.ZERO) == 0) {
+            throw new IllegalStateException("Total shares cannot be zero");
+        }
+
+        for (Member m : members) {
+            BigDecimal mShares = m.getMemberShares() != null ? m.getMemberShares() : BigDecimal.ZERO;
+            BigDecimal percentage = mShares.divide(totalShares, 4, RoundingMode.HALF_UP);
+            BigDecimal interest = penaltyAmount.multiply(percentage);
+            m.setMemberShares(mShares.add(interest));
+            memberRepository.save(m);
+        }
+    }
+
+    private Response<Contribution> handleSaveException(Exception e) {
+        String message = Utils.getExceptionMessage(e);
+        if (message.contains("month"))
+            return new Response<>("Invalid Month");
+        if (message.contains("(memberId)"))
+            return new Response<>("Invalid Member");
+        if (message.contains("amount"))
+            return new Response<>("Invalid Amount");
+        return new Response<>("Could not save monthly Contribution for a member");
     }
 
     public ResponsePage<Contribution> getContributions(PageableParam pageableParam) {
@@ -291,7 +313,7 @@ public class ContributionService {
             if (amount == null || year == null || month == null)
                 return Response.warning(null, "Amount, year, and month are required");
             contributionRepository.insertEntryFeeContributions(amount, year, month);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
             return Response.error("Could not insert entry fee contributions");
         }
