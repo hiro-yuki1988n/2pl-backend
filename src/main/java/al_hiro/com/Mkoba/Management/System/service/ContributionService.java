@@ -115,26 +115,50 @@ public class ContributionService {
     }
 
     private Contribution handleShareContribution(ContributionDto dto, Member member) {
-        Optional<Contribution> existingContribution =
-                contributionRepository.findByMemberAndMonthAndContributionCategory(
-                        dto.getMemberId(), dto.getMonth(), ContributionCategory.SHARE);
-
         Contribution contribution;
 
-        if (existingContribution.isPresent()) {
-            log.info("Updating existing SHARE contribution");
-            contribution = existingContribution.get();
-            contribution.setAmount(contribution.getAmount().add(dto.getAmount()));
-        } else {
-            log.info("Creating new SHARE contribution");
-            contribution = new Contribution();
-            contribution.setAmount(dto.getAmount());
-            contribution.setMonth(dto.getMonth());
-            contribution.setYear(Year.now().getValue());
-            contribution.setMember(member);
-            contribution.setContributionCategory(ContributionCategory.SHARE);
+        if (dto.getId() != null) {
+            //Editing existing contribution
+            Optional<Contribution> optionalContribution = contributionRepository.findById(dto.getId());
+
+            if (optionalContribution.isPresent()) {
+                contribution = optionalContribution.get();
+
+                // Check if it belongs to the same member
+                if (!contribution.getMember().getId().equals(dto.getMemberId())) {
+                    throw new IllegalArgumentException("Contribution does not belong to this member");
+                }
+
+                log.info("Editing existing SHARE contribution with id {} " + dto.getId());
+
+                // Update details
+                contribution.setAmount(dto.getAmount());
+                contribution.setMonth(dto.getMonth());
+                contribution.setYear(Year.now().getValue());
+                contribution.setPaymentDate(LocalDateTime.now());
+                contribution.setContributionCategory(ContributionCategory.SHARE);
+                contribution.update();
+
+                // Update member shares (adjust by difference instead of re-adding full amount)
+                BigDecimal oldAmount = contribution.getAmount() != null ? contribution.getAmount() : BigDecimal.ZERO;
+                BigDecimal difference = dto.getAmount().subtract(oldAmount);
+
+                BigDecimal existingShares = member.getMemberShares() != null ? member.getMemberShares() : BigDecimal.ZERO;
+                member.setMemberShares(existingShares.add(difference));
+                memberRepository.save(member);
+
+                return contribution;
+            }
         }
 
+        //Creating new contribution
+        log.info("Creating new SHARE contribution for member {} " + dto.getMemberId());
+        contribution = new Contribution();
+        contribution.setAmount(dto.getAmount());
+        contribution.setMonth(dto.getMonth());
+        contribution.setYear(Year.now().getValue());
+        contribution.setMember(member);
+        contribution.setContributionCategory(ContributionCategory.SHARE);
         contribution.setPaymentDate(LocalDateTime.now());
 
         // Update member shares
